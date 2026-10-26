@@ -1,0 +1,70 @@
+[project]
+name = "aigc-selfcheck"
+version = "0.2.0"
+description = "纯本地的中文文本 AIGC 风险自检台：三路检测器投票 + 逐句可解释热力图，单文件 HTML 报告，文本不出本机。"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Cheng Ge" }]
+keywords = [
+  "aigc",
+  "ai-text-detection",
+  "chinese-nlp",
+  "perplexity",
+  "local-inference",
+  "privacy",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+  "torch>=2.4",
+  "transformers>=4.44",
+  "onnxruntime>=1.18",
+  "python-docx>=1.1",
+  "numpy>=1.26",
+  "pypdf>=6.21.2",
+]
+
+[project.scripts]
+aigc-selfcheck = "aigc_selfcheck.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/jinlio/aigc-selfcheck"
+Issues = "https://github.com/jinlio/aigc-selfcheck/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aigc_selfcheck"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+    "build>=1.2",
+    "scikit-learn>=1.4",
+    "reportlab>=5.1.0",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

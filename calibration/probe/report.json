@@ -1,0 +1,1778 @@
+{
+  "note": "report-only; never used for calibration, splits, thresholds or weights",
+  "hot": 0.75,
+  "model": "Qwen/Qwen3.5-2B-Base",
+  "summary": {
+    "classical_prose": {
+      "n_paragraphs": 25,
+      "n_windows": 62,
+      "median_of_medians": 0.42251341374130824,
+      "mean_of_medians": 0.42751769413024976,
+      "paragraph_fp_median": 0.0,
+      "paragraph_fp_p90": 0.04,
+      "window_fp": 0.016129032258064516,
+      "lane_median_a": 0.010483570396900177,
+      "lane_median_b": 0.12916208803653717,
+      "lane_median_c": 0.5701452760103259
+    },
+    "late_qing_fiction": {
+      "n_paragraphs": 25,
+      "n_windows": 80,
+      "median_of_medians": 0.3538100927187643,
+      "mean_of_medians": 0.3376157842784284,
+      "paragraph_fp_median": 0.0,
+      "paragraph_fp_p90": 0.0,
+      "window_fp": 0.0,
+      "lane_median_a": 0.005510508315637708,
+      "lane_median_b": 0.038729676976799965,
+      "lane_median_c": 0.5091035631057464
+    },
+    "modern_essay": {
+      "n_paragraphs": 25,
+      "n_windows": 96,
+      "median_of_medians": 0.24116178664592847,
+      "mean_of_medians": 0.2618554892804756,
+      "paragraph_fp_median": 0.0,
+      "paragraph_fp_p90": 0.0,
+      "window_fp": 0.0,
+      "lane_median_a": 0.0019596549682319164,
+      "lane_median_b": 0.01810126332566142,
+      "lane_median_c": 0.3476350719239616
+    },
+    "modern_literary": {
+      "n_paragraphs": 25,
+      "n_windows": 71,
+      "median_of_medians": 0.24815906384914269,
+      "mean_of_medians": 0.25685339097190557,
+      "paragraph_fp_median": 0.0,
+      "paragraph_fp_p90": 0.0,
+      "window_fp": 0.0,
+      "lane_median_a": 0.0023831677390262485,
+      "lane_median_b": 0.01813553459942341,
+      "lane_median_c": 0.36637114114100167
+    }
+  },
+  "overall": {
+    "n_paragraphs": 100,
+    "n_windows": 309,
+    "median_of_medians": 0.2888475735946887,
+    "mean_of_medians": 0.32096058966526486,
+    "paragraph_fp_median": 0.0,
+    "paragraph_fp_p90": 0.01,
+    "window_fp": 0.003236245954692557,
+    "lane_median_a": 0.003230976464692503,
+    "lane_median_b": 0.039559717290103436,
+    "lane_median_c": 0.4450960459977915
+  },
+  "baseline_train_human_in_sample": {
+    "n_paragraphs": 98,
+    "n_windows": 268,
+    "median_of_medians": 0.3353225041061408,
+    "mean_of_medians": 0.35200645567834743,
+    "paragraph_fp_median": 0.0,
+    "paragraph_fp_p90": 0.0,
+    "window_fp": 0.0
+  },
+  "paragraphs": [
+    {
+      "id": "probe-modern_literary-01",
+      "register": "modern_literary",
+      "book": "彷徨（鲁迅）",
+      "gutenberg_id": "24042",
+      "cjk": 264,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.27590412777021583,
+      "p90": 0.27973799321738047,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0009978503221645951,
+        "b": 0.009069861844182014,
+        "c": 0.4537936383875717
+      }
+    },
+    {
+      "id": "probe-modern_literary-02",
+      "register": "modern_literary",
+      "book": "彷徨（鲁迅）",
+      "gutenberg_id": "24042",
+      "cjk": 132,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.24923381749359957,
+      "p90": 0.2604465137154464,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.00032080066739581525,
+        "b": 0.018540363758802414,
+        "c": 0.41082122300760937
+      }
+    },
+    {
+      "id": "probe-modern_literary-03",
+      "register": "modern_literary",
+      "book": "彷徨（鲁迅）",
+      "gutenberg_id": "24042",
+      "cjk": 145,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.24350545012117572,
+      "p90": 0.24863992918077363,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0028632229659706354,
+        "b": 0.22715367376804352,
+        "c": 0.2468887501816145
+      }
+    },
+    {
+      "id": "probe-modern_literary-04",
+      "register": "modern_literary",
+      "book": "彷徨（鲁迅）",
+      "gutenberg_id": "24042",
+      "cjk": 136,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.20589696621670567,
+      "p90": 0.26281200940214167,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0012700846418738365,
+        "b": 0.009500297717750072,
+        "c": 0.3373895002864176
+      }
+    },
+    {
+      "id": "probe-modern_literary-05",
+      "register": "modern_literary",
+      "book": "彷徨（鲁迅）",
+      "gutenberg_id": "24042",
+      "cjk": 157,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.3215771582965553,
+      "p90": 0.3657195489602111,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0009151115373242646,
+        "b": 0.15144754201173782,
+        "c": 0.42502647486865996
+      }
+    },
+    {
+      "id": "probe-modern_literary-06",
+      "register": "modern_literary",
+      "book": "彷徨（鲁迅）",
+      "gutenberg_id": "24042",
+      "cjk": 112,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.17234943921147938,
+      "p90": 0.22704816862863336,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.00044932013406651095,
+        "b": 0.009134299121797085,
+        "c": 0.2811595326046009
+      }
+    },
+    {
+      "id": "probe-modern_literary-07",
+      "register": "modern_literary",
+      "book": "彷徨（鲁迅）",
+      "gutenberg_id": "24042",
+      "cjk": 171,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.18407632762026008,
+      "p90": 0.20505604937066213,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.001267598825506866,
+        "b": 0.010504121892154217,
+        "c": 0.2997911314389973
+      }
+    },
+    {
+      "id": "probe-modern_literary-08",
+      "register": "modern_literary",
+      "book": "彷徨（鲁迅）",
+      "gutenberg_id": "24042",
+      "cjk": 118,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.21579889349764275,
+      "p90": 0.2448018229810726,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0033604971831664443,
+        "b": 0.029017494060099125,
+        "c": 0.34031982645600517
+      }
+    },
+    {
+      "id": "probe-modern_literary-09",
+      "register": "modern_literary",
+      "book": "阿Q正传（鲁迅）",
+      "gutenberg_id": "25332",
+      "cjk": 338,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.31615500790002254,
+      "p90": 0.31665783935900077,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.004593085031956434,
+        "b": 0.006495232228189707,
+        "c": 0.5225948583479111
+      }
+    },
+    {
+      "id": "probe-modern_literary-10",
+      "register": "modern_literary",
+      "book": "阿Q正传（鲁迅）",
+      "gutenberg_id": "25332",
+      "cjk": 241,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.2806519986065798,
+      "p90": 0.2806519986065798,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0021377578377723694,
+        "b": 0.0052131470292806625,
+        "c": 0.4642778996581125
+      }
+    },
+    {
+      "id": "probe-modern_literary-11",
+      "register": "modern_literary",
+      "book": "阿Q正传（鲁迅）",
+      "gutenberg_id": "25332",
+      "cjk": 133,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.27041132706282056,
+      "p90": 0.29046805805913734,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0032717763679102063,
+        "b": 0.006661263760179281,
+        "c": 0.4462447025979147
+      }
+    },
+    {
+      "id": "probe-modern_literary-12",
+      "register": "modern_literary",
+      "book": "阿Q正传（鲁迅）",
+      "gutenberg_id": "25332",
+      "cjk": 166,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.2621400027998603,
+      "p90": 0.31091504568356915,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0017839419888332486,
+        "b": 0.005725711118429899,
+        "c": 0.43308286392081397
+      }
+    },
+    {
+      "id": "probe-modern_literary-13",
+      "register": "modern_literary",
+      "book": "阿Q正传（鲁迅）",
+      "gutenberg_id": "25332",
+      "cjk": 157,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.27275263873975103,
+      "p90": 0.29677218649157083,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.003889801213517785,
+        "b": 0.007055989466607571,
+        "c": 0.4498837382551801
+      }
+    },
+    {
+      "id": "probe-modern_literary-14",
+      "register": "modern_literary",
+      "book": "阿Q正传（鲁迅）",
+      "gutenberg_id": "25332",
+      "cjk": 316,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.22175737285038488,
+      "p90": 0.23225894828122606,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0023986808955669403,
+        "b": 0.004836720414459705,
+        "c": 0.36637114114100167
+      }
+    },
+    {
+      "id": "probe-modern_literary-15",
+      "register": "modern_literary",
+      "book": "阿Q正传（鲁迅）",
+      "gutenberg_id": "25332",
+      "cjk": 137,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.2752422649575422,
+      "p90": 0.29586754456736475,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0028675677021965384,
+        "b": 0.00742160901427269,
+        "c": 0.453789368919722
+      }
+    },
+    {
+      "id": "probe-modern_literary-16",
+      "register": "modern_literary",
+      "book": "阿Q正传（鲁迅）",
+      "gutenberg_id": "25332",
+      "cjk": 134,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.3455228274790788,
+      "p90": 0.3967740123417837,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.1345377340912819,
+        "b": 0.13197806989774108,
+        "c": 0.48788599919997067
+      }
+    },
+    {
+      "id": "probe-modern_literary-17",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 103,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.2089745837303712,
+      "p90": 0.47638394970972453,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.08518103510141373,
+        "b": 0.06916192919015884,
+        "c": 0.3021830200905128
+      }
+    },
+    {
+      "id": "probe-modern_literary-18",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 110,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.42449954458571504,
+      "p90": 0.47287053671881935,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0008604848990216851,
+        "b": 0.10209845751523972,
+        "c": 0.5593425169157549
+      }
+    },
+    {
+      "id": "probe-modern_literary-19",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 159,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.24815906384914269,
+      "p90": 0.26743516570808584,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0023831677390262485,
+        "b": 0.0215064724907279,
+        "c": 0.3789631902232625
+      }
+    },
+    {
+      "id": "probe-modern_literary-20",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 147,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.2017752357998644,
+      "p90": 0.30498158558342353,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0005252766131889075,
+        "b": 0.028979060240089893,
+        "c": 0.31515333333682194
+      }
+    },
+    {
+      "id": "probe-modern_literary-21",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 118,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.21578628056742155,
+      "p90": 0.2819490737691794,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0011936369119212031,
+        "b": 0.01813553459942341,
+        "c": 0.34872585549118457
+      }
+    },
+    {
+      "id": "probe-modern_literary-22",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 114,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.14906475913790834,
+      "p90": 0.23858215998077809,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0006392974173650146,
+        "b": 0.05195426568388939,
+        "c": 0.20473589815140464
+      }
+    },
+    {
+      "id": "probe-modern_literary-23",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 105,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.14316374740941853,
+      "p90": 0.3068907481466202,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.035025257617235184,
+        "b": 0.012363290414214134,
+        "c": 0.2246778974987513
+      }
+    },
+    {
+      "id": "probe-modern_literary-24",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 110,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.5133203013167404,
+      "p90": 0.5846226750233263,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.02215181663632393,
+        "b": 0.7998433709144592,
+        "c": 0.3223049215849279
+      }
+    },
+    {
+      "id": "probe-modern_literary-25",
+      "register": "modern_literary",
+      "book": "野草（鲁迅）",
+      "gutenberg_id": "25242",
+      "cjk": 111,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.20361563727738272,
+      "p90": 0.24543192648119905,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.006380109116435051,
+        "b": 0.058864858001470566,
+        "c": 0.3001161567946575
+      }
+    },
+    {
+      "id": "probe-modern_essay-01",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 171,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.21131554622185486,
+      "p90": 0.21131554622185486,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0017003987450152636,
+        "b": 0.011514236219227314,
+        "c": 0.3445164195569399
+      }
+    },
+    {
+      "id": "probe-modern_essay-02",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 216,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.20457323356917956,
+      "p90": 0.21401444466315592,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.00020227296045050025,
+        "b": 0.008852239698171616,
+        "c": 0.3350538961498515
+      }
+    },
+    {
+      "id": "probe-modern_essay-03",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 318,
+      "n_windows": 5,
+      "window_fp": 0,
+      "median": 0.4041030510047803,
+      "p90": 0.4929927142745702,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.003602433716878295,
+        "b": 0.4803071618080139,
+        "c": 0.41684723636925114
+      }
+    },
+    {
+      "id": "probe-modern_essay-04",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 341,
+      "n_windows": 5,
+      "window_fp": 0,
+      "median": 0.39587096469439087,
+      "p90": 0.4277476335248802,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0005610143998637795,
+        "b": 0.007450671400874853,
+        "c": 0.6522607513076236
+      }
+    },
+    {
+      "id": "probe-modern_essay-05",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 108,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.2076587625377388,
+      "p90": 0.27319326926689075,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.06262394040822983,
+        "b": 0.01637195609509945,
+        "c": 0.31007358858429984
+      }
+    },
+    {
+      "id": "probe-modern_essay-06",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 160,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.23426575738806305,
+      "p90": 0.41813621682119156,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0019780502188950777,
+        "b": 0.3459240794181824,
+        "c": 0.15982687603465018
+      }
+    },
+    {
+      "id": "probe-modern_essay-07",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 132,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.3339614435008409,
+      "p90": 0.3954466446326741,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0010191505134571344,
+        "b": 0.04402482882142067,
+        "c": 0.4825933499421084
+      }
+    },
+    {
+      "id": "probe-modern_essay-08",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 336,
+      "n_windows": 5,
+      "window_fp": 0,
+      "median": 0.203577983952959,
+      "p90": 0.24432885757359626,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0025415581185370684,
+        "b": 0.01933646947145462,
+        "c": 0.33347240538980505
+      }
+    },
+    {
+      "id": "probe-modern_essay-09",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 274,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.3021879218413379,
+      "p90": 0.33304028616681686,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.014347727876156569,
+        "b": 0.01810126332566142,
+        "c": 0.4958793110969906
+      }
+    },
+    {
+      "id": "probe-modern_essay-10",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 377,
+      "n_windows": 7,
+      "window_fp": 0,
+      "median": 0.3562751835418899,
+      "p90": 0.38601417696475204,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.002985423430800438,
+        "b": 0.08271600306034088,
+        "c": 0.47255335348068994
+      }
+    },
+    {
+      "id": "probe-modern_essay-11",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 165,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.21014632701059022,
+      "p90": 0.21014632701059022,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0022630037274211645,
+        "b": 0.024570457637310028,
+        "c": 0.3338635732594437
+      }
+    },
+    {
+      "id": "probe-modern_essay-12",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 212,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.21157119936445967,
+      "p90": 0.23749675566087325,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.001192159776110202,
+        "b": 0.10425764322280884,
+        "c": 0.28311357012556027
+      }
+    },
+    {
+      "id": "probe-modern_essay-13",
+      "register": "modern_essay",
+      "book": "朝花夕拾（鲁迅）",
+      "gutenberg_id": "25271",
+      "cjk": 219,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.1677064641285269,
+      "p90": 0.16913605717783492,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0007286265026777983,
+        "b": 0.009578542783856392,
+        "c": 0.27312507835830724
+      }
+    },
+    {
+      "id": "probe-modern_essay-14",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 397,
+      "n_windows": 6,
+      "window_fp": 0,
+      "median": 0.2647549754027688,
+      "p90": 0.26943945674098363,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0031901765614748,
+        "b": 0.013564381748437881,
+        "c": 0.41945593753559324
+      }
+    },
+    {
+      "id": "probe-modern_essay-15",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 112,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.15621864737259028,
+      "p90": 0.18032579612201893,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0013475636951625347,
+        "b": 0.015579542145133018,
+        "c": 0.2499780508575618
+      }
+    },
+    {
+      "id": "probe-modern_essay-16",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 264,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.21326205258108993,
+      "p90": 0.2681259002194557,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0002479346876498312,
+        "b": 0.011702523566782475,
+        "c": 0.3476350719239616
+      }
+    },
+    {
+      "id": "probe-modern_essay-17",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 116,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.24116178664592847,
+      "p90": 0.27826014871329363,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0015679871430620551,
+        "b": 0.016661187633872032,
+        "c": 0.3861208078021464
+      }
+    },
+    {
+      "id": "probe-modern_essay-18",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 131,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.2652995387351016,
+      "p90": 0.3009855787847992,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0006793722859583795,
+        "b": 0.12619784474372864,
+        "c": 0.30446452579474387
+      }
+    },
+    {
+      "id": "probe-modern_essay-19",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 133,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.3891726022932551,
+      "p90": 0.3891726022932551,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0028903724160045385,
+        "b": 0.5869391560554504,
+        "c": 0.25732823311845826
+      }
+    },
+    {
+      "id": "probe-modern_essay-20",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 322,
+      "n_windows": 5,
+      "window_fp": 0,
+      "median": 0.30732134432313535,
+      "p90": 0.32102552250260913,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0026059846859425306,
+        "b": 0.01193060353398323,
+        "c": 0.5072578912098821
+      }
+    },
+    {
+      "id": "probe-modern_essay-21",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 236,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.3385302074457351,
+      "p90": 0.4043824377799844,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0008500965195707977,
+        "b": 0.03815611079335213,
+        "c": 0.5387796052139904
+      }
+    },
+    {
+      "id": "probe-modern_essay-22",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 149,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.261084859382105,
+      "p90": 0.29080232799241273,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0019596549682319164,
+        "b": 0.008094759657979012,
+        "c": 0.4297449258648557
+      }
+    },
+    {
+      "id": "probe-modern_essay-23",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 360,
+      "n_windows": 7,
+      "window_fp": 0,
+      "median": 0.22983949688285238,
+      "p90": 0.27719310904670014,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0036521204747259617,
+        "b": 0.07110712677240372,
+        "c": 0.3516786771531261
+      }
+    },
+    {
+      "id": "probe-modern_essay-24",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 361,
+      "n_windows": 7,
+      "window_fp": 0,
+      "median": 0.18813850291394948,
+      "p90": 0.23345583633268355,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.002128088381141424,
+        "b": 0.010929509997367859,
+        "c": 0.30763767362176975
+      }
+    },
+    {
+      "id": "probe-modern_essay-25",
+      "register": "modern_essay",
+      "book": "欧游杂记（朱自清）",
+      "gutenberg_id": "24110",
+      "cjk": 294,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.24838937927676666,
+      "p90": 0.27139600233041405,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.00044134636118542403,
+        "b": 0.02417074516415596,
+        "c": 0.39944484700582805
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-01",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 106,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.3742237746118475,
+      "p90": 0.398801609508573,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.016727110370993614,
+        "b": 0.06501719355583191,
+        "c": 0.5881748397149923
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-02",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 162,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.40945754701651194,
+      "p90": 0.47618857389987296,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.001066882978193462,
+        "b": 0.004664474166929722,
+        "c": 0.6793195955829001
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-03",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 216,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.3720040111055105,
+      "p90": 0.37568745890928906,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.014648895594291389,
+        "b": 0.021741384640336037,
+        "c": 0.6055124287489602
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-04",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 268,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.225078147858517,
+      "p90": 0.22982276499752333,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0025826675700955093,
+        "b": 0.024002531077712774,
+        "c": 0.35912855904571983
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-05",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 312,
+      "n_windows": 5,
+      "window_fp": 0,
+      "median": 0.44958055725775603,
+      "p90": 0.5008173337768913,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0016676710220053792,
+        "b": 0.07305250316858292,
+        "c": 0.6987675446782252
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-06",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 154,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.5114086510037315,
+      "p90": 0.6199044193619672,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.012489714659750462,
+        "b": 0.12683619931340218,
+        "c": 0.7677902854639511
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-07",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 226,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.27798362676856647,
+      "p90": 0.27969532658154816,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.010590176098048687,
+        "b": 0.018795279785990715,
+        "c": 0.45264008276260115
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-08",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 143,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.3393249328638232,
+      "p90": 0.3393249328638232,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.005568366497755051,
+        "b": 0.010530338622629642,
+        "c": 0.5585213290246189
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-09",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 229,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.24536618781663871,
+      "p90": 0.24536618781663871,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.001022883108817041,
+        "b": 0.01719149388372898,
+        "c": 0.39748265043857856
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-10",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 126,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.2212351356184032,
+      "p90": 0.32893407402898645,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.007669341983273625,
+        "b": 0.038729676976799965,
+        "c": 0.31624489925261756
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-11",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 201,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.29853875044112627,
+      "p90": 0.31199236495836646,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.00832737935706973,
+        "b": 0.0413668742403388,
+        "c": 0.46998666790831795
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-12",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 116,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.5077453787004211,
+      "p90": 0.6443396211409799,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.11983422562479973,
+        "b": 0.42037971317768097,
+        "c": 0.6200110109109447
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-13",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 102,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.5460611765808931,
+      "p90": 0.6792228320402678,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.005510508315637708,
+        "b": 0.8006501495838165,
+        "c": 0.3569373795103814
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-14",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 266,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.2153586259045791,
+      "p90": 0.21796257294696453,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0008534888329450041,
+        "b": 0.011108970735222101,
+        "c": 0.3515250626841504
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-15",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 365,
+      "n_windows": 5,
+      "window_fp": 0,
+      "median": 0.37942392113248685,
+      "p90": 0.3835977079377112,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0012456569820642471,
+        "b": 0.008849358186125755,
+        "c": 0.6264736297633943
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-16",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 241,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.3538100927187643,
+      "p90": 0.4894445333946716,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.004120554309338331,
+        "b": 0.05474812164902687,
+        "c": 0.5531847400985893
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-17",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 214,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.191657313068972,
+      "p90": 0.22373804840974137,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.00026418420020490885,
+        "b": 0.010378858540207148,
+        "c": 0.3139539440435932
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-18",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 345,
+      "n_windows": 5,
+      "window_fp": 0,
+      "median": 0.3671467552057287,
+      "p90": 0.4187043960968228,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0017636980628594756,
+        "b": 0.06195671856403351,
+        "c": 0.570220874327981
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-19",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 120,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.38309855859022396,
+      "p90": 0.40668201258498665,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.007353417109698057,
+        "b": 0.22404369711875916,
+        "c": 0.5091035631057464
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-20",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 262,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.4007939250305414,
+      "p90": 0.4199917982453678,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.003151160664856434,
+        "b": 0.033035725355148315,
+        "c": 0.6518068898941278
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-21",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 242,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.40916760809044356,
+      "p90": 0.40916760809044356,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.006812462583184242,
+        "b": 0.04408678039908409,
+        "c": 0.6525548265513499
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-22",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 190,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.17877159104935572,
+      "p90": 0.19272298494561682,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.008273145649582148,
+        "b": 0.015760506503283978,
+        "c": 0.2885323754398731
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-23",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 265,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.2582733183278898,
+      "p90": 0.359861217469308,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0015904762549325824,
+        "b": 0.023844869807362556,
+        "c": 0.414558950674908
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-24",
+      "register": "late_qing_fiction",
+      "book": "孽海花（曾朴）",
+      "gutenberg_id": "25128",
+      "cjk": 330,
+      "n_windows": 6,
+      "window_fp": 0,
+      "median": 0.25364775042858795,
+      "p90": 0.2791153164852768,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0014337397296912968,
+        "b": 0.05772086977958679,
+        "c": 0.37446587869426223
+      }
+    },
+    {
+      "id": "probe-late_qing_fiction-25",
+      "register": "late_qing_fiction",
+      "book": "老残游记（刘鹗）",
+      "gutenberg_id": "25124",
+      "cjk": 231,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.2712372697693908,
+      "p90": 0.552527269357953,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.007363326381891966,
+        "b": 0.046155329793691635,
+        "c": 0.4212918964198569
+      }
+    },
+    {
+      "id": "probe-classical_prose-01",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 138,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.3937520008208104,
+      "p90": 0.3937520008208104,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.09990403801202774,
+        "b": 0.12916208803653717,
+        "c": 0.5701452760103259
+      }
+    },
+    {
+      "id": "probe-classical_prose-02",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 196,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.3896737783914391,
+      "p90": 0.39413992760507266,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.053062137216329575,
+        "b": 0.09111039340496063,
+        "c": 0.582606504326529
+      }
+    },
+    {
+      "id": "probe-classical_prose-03",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 193,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.5131726284970883,
+      "p90": 0.539914651324561,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.011388767743483186,
+        "b": 0.2936328798532486,
+        "c": 0.6595324609263149
+      }
+    },
+    {
+      "id": "probe-classical_prose-04",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 119,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.5573458430269427,
+      "p90": 0.5961134597065334,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.020321526564657688,
+        "b": 0.5803636312484741,
+        "c": 0.5852912895343655
+      }
+    },
+    {
+      "id": "probe-classical_prose-05",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 159,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.42251341374130824,
+      "p90": 0.42251341374130824,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.014829572290182114,
+        "b": 0.23105043172836304,
+        "c": 0.5501554017499384
+      }
+    },
+    {
+      "id": "probe-classical_prose-06",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 172,
+      "n_windows": 2,
+      "window_fp": 0,
+      "median": 0.3309856781320565,
+      "p90": 0.3353409869809424,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.004934394033625722,
+        "b": 0.07311823405325413,
+        "c": 0.5028973075179247
+      }
+    },
+    {
+      "id": "probe-classical_prose-07",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 123,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.39624479993708284,
+      "p90": 0.4125964440415923,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.009152988903224468,
+        "b": 0.10712980479001999,
+        "c": 0.5937244422677322
+      }
+    },
+    {
+      "id": "probe-classical_prose-08",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 103,
+      "n_windows": 4,
+      "window_fp": 1,
+      "median": 0.6710923102820099,
+      "p90": 0.763571169038936,
+      "band": "高",
+      "lane_medians": {
+        "a": 0.04670165106654167,
+        "b": 0.5723203718662262,
+        "c": 0.7369402692258656
+      }
+    },
+    {
+      "id": "probe-classical_prose-09",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 169,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.3309312680924091,
+      "p90": 0.3309312680924091,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.004690542817115784,
+        "b": 0.04040699824690819,
+        "c": 0.5246141146560763
+      }
+    },
+    {
+      "id": "probe-classical_prose-10",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 186,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.5666195035738528,
+      "p90": 0.5839106109175716,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.010483570396900177,
+        "b": 0.7169153094291687,
+        "c": 0.49524081190984015
+      }
+    },
+    {
+      "id": "probe-classical_prose-11",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 151,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.42426092805495774,
+      "p90": 0.5047252124092831,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.05304644908756018,
+        "b": 0.11910443007946014,
+        "c": 0.6239478816924975
+      }
+    },
+    {
+      "id": "probe-classical_prose-12",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 122,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.45300106374214033,
+      "p90": 0.45300106374214033,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.006924760062247515,
+        "b": 0.6009575128555298,
+        "c": 0.35436343099988066
+      }
+    },
+    {
+      "id": "probe-classical_prose-13",
+      "register": "classical_prose",
+      "book": "中国小说史略（鲁迅）",
+      "gutenberg_id": "25559",
+      "cjk": 209,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.3312690537533032,
+      "p90": 0.3312690537533032,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.002436863724142313,
+        "b": 0.040389757603406906,
+        "c": 0.5251885845199007
+      }
+    },
+    {
+      "id": "probe-classical_prose-14",
+      "register": "classical_prose",
+      "book": "中国小说史略（鲁迅）",
+      "gutenberg_id": "25559",
+      "cjk": 155,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.27400218303420987,
+      "p90": 0.27400218303420987,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.0037921147886663675,
+        "b": 0.019084373489022255,
+        "c": 0.44394738939766826
+      }
+    },
+    {
+      "id": "probe-classical_prose-15",
+      "register": "classical_prose",
+      "book": "中国小说史略（鲁迅）",
+      "gutenberg_id": "25559",
+      "cjk": 306,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.2970431485827976,
+      "p90": 0.31881347848043823,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.00037449647788889706,
+        "b": 0.005507952068001032,
+        "c": 0.49206524026579557
+      }
+    },
+    {
+      "id": "probe-classical_prose-16",
+      "register": "classical_prose",
+      "book": "中国小说史略（鲁迅）",
+      "gutenberg_id": "25559",
+      "cjk": 180,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.6517681949753132,
+      "p90": 0.6788210140084243,
+      "band": "高",
+      "lane_medians": {
+        "a": 0.05304962769150734,
+        "b": 0.7552783489227295,
+        "c": 0.5873555577010777
+      }
+    },
+    {
+      "id": "probe-classical_prose-17",
+      "register": "classical_prose",
+      "book": "中国小说史略（鲁迅）",
+      "gutenberg_id": "25559",
+      "cjk": 104,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.46973695038416063,
+      "p90": 0.5328927861659205,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.006172861671075225,
+        "b": 0.47825880348682404,
+        "c": 0.5203974764222651
+      }
+    },
+    {
+      "id": "probe-classical_prose-18",
+      "register": "classical_prose",
+      "book": "中国小说史略（鲁迅）",
+      "gutenberg_id": "25559",
+      "cjk": 193,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.2761240289289765,
+      "p90": 0.2761240289289765,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.00448914710432291,
+        "b": 0.0585104301571846,
+        "c": 0.42119976144350446
+      }
+    },
+    {
+      "id": "probe-classical_prose-19",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 183,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.49943737190010956,
+      "p90": 0.5047569047495379,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.03260919824242592,
+        "b": 0.15260404348373413,
+        "c": 0.7306595908443598
+      }
+    },
+    {
+      "id": "probe-classical_prose-20",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 101,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.5194484490057084,
+      "p90": 0.5378821846109828,
+      "band": "中",
+      "lane_medians": {
+        "a": 0.006460326723754406,
+        "b": 0.19604834914207458,
+        "c": 0.718256770945622
+      }
+    },
+    {
+      "id": "probe-classical_prose-21",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 162,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.4066133586854669,
+      "p90": 0.4066133586854669,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.023759113624691963,
+        "b": 0.12669135630130768,
+        "c": 0.5932280269415731
+      }
+    },
+    {
+      "id": "probe-classical_prose-22",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 105,
+      "n_windows": 3,
+      "window_fp": 0,
+      "median": 0.42449286126523256,
+      "p90": 0.4611835273622008,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.006442098878324032,
+        "b": 0.24592028558254242,
+        "c": 0.5435412450536926
+      }
+    },
+    {
+      "id": "probe-classical_prose-23",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 317,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.2642488470949802,
+      "p90": 0.29412745556413633,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.005356519017368555,
+        "b": 0.020643087103962898,
+        "c": 0.4266526870889918
+      }
+    },
+    {
+      "id": "probe-classical_prose-24",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 129,
+      "n_windows": 1,
+      "window_fp": 0,
+      "median": 0.38677838398436054,
+      "p90": 0.38677838398436054,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.012023687362670898,
+        "b": 0.05016433075070381,
+        "c": 0.6111877528067984
+      }
+    },
+    {
+      "id": "probe-classical_prose-25",
+      "register": "classical_prose",
+      "book": "古文观止",
+      "gutenberg_id": "25225",
+      "cjk": 230,
+      "n_windows": 4,
+      "window_fp": 0,
+      "median": 0.4373863053695267,
+      "p90": 0.4563419429867148,
+      "band": "低",
+      "lane_medians": {
+        "a": 0.02196410857141018,
+        "b": 0.14916979894042015,
+        "c": 0.6351249049038299
+      }
+    }
+  ]
+}

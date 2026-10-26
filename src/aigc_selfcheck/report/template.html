@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>__CSS__</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-top">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span class="brand-name">墨鉴</span>
+      <span class="brand-divider"></span>
+      <span class="brand-sub">AIGC 本地自查</span>
+    </div>
+    <span class="privacy-badge">纯离线 · 文本不上传</span>
+  </div>
+  <div class="hero-main">
+    <div class="hero-copy">
+      <p class="hero-kicker">LOCAL AIGC SELF-CHECK</p>
+      <h1 id="doc-title">__TITLE__</h1>
+      <p class="hero-sub">先看哪段最像 AI，再按原文证据改；不改变结构、事实和数据。</p>
+    </div>
+    <div id="score-card" class="score-card"></div>
+  </div>
+  <div id="chips" class="chips"></div>
+  <div class="banner">
+    <strong>⚠ 免责声明</strong>
+    <span id="disclaimer-text"></span>
+    <span id="provisional-note" class="prov"></span>
+  </div>
+</header>
+<nav class="tabs" id="tabs" aria-label="报告视图">
+  <button type="button" data-tab="overview" class="active">热力图</button>
+  <button type="button" data-tab="sections">章节地图</button>
+  <button type="button" data-tab="plan">修改计划</button>
+  <button type="button" data-tab="top">高风险清单</button>
+  <button type="button" data-tab="windows">窗口明细</button>
+  <button type="button" data-tab="features">特征面板</button>
+</nav>
+<main>
+  <section id="view-overview">
+    <div class="section-head">
+      <div>
+        <h2>逐句热力图</h2>
+        <p class="hint">颜色越深，模型越认为这句像 AI；点任意句子查看原因和改法。</p>
+      </div>
+      <div class="legend" aria-label="风险颜色图例">
+        <span><span class="dot low"></span>低</span>
+        <span><span class="dot mid"></span>中</span>
+        <span><span class="dot high"></span>高</span>
+      </div>
+    </div>
+    <div id="hot-cards"></div>
+    <div id="blocks"></div>
+  </section>
+  <section id="view-sections" hidden>
+    <div class="section-head">
+      <div>
+        <h2>章节地图</h2>
+        <p class="hint">按文档标题聚合；章节分数只用于定位，不改变全文区间带。</p>
+      </div>
+    </div>
+    <p class="hint table-scroll-hint">左右滑动查看完整表格 →</p>
+    <div class="table-wrap">
+      <table class="grid" id="section-table">
+        <thead><tr><th>章节</th><th>窗口</th><th>汉字</th><th>基调 median</th><th>尾部 P90</th><th>综合分</th><th>区间带</th><th>提示</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+  <section id="view-plan" hidden>
+    <div class="section-head">
+      <div>
+        <h2>修改计划</h2>
+        <p class="hint">按「单独处理这一段后，全文综合分会下降多少」排序。</p>
+      </div>
+    </div>
+    <div id="plan-summary" class="panel"></div>
+    <div id="plan-cards"></div>
+  </section>
+  <section id="view-top" hidden>
+    <div class="section-head">
+      <div>
+        <h2>高风险清单</h2>
+        <p class="hint">只列句级风险 ≥ 0.50 的句子；点句子看逐条证据。</p>
+      </div>
+    </div>
+    <div id="guidance" class="panel"></div>
+    <p class="hint table-scroll-hint">左右滑动查看完整表格 →</p>
+    <div class="table-wrap">
+      <table class="grid" id="top-table">
+        <thead><tr><th>#</th><th>风险</th><th>句子</th><th>为什么被标</th><th>怎么改</th><th>复制</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+  <section id="view-windows" hidden>
+    <div class="section-head">
+      <div>
+        <h2>窗口明细</h2>
+        <p class="hint">窗口是融合与解释的最小单位；三路分数和融合分都可复核。</p>
+      </div>
+    </div>
+    <p class="hint table-scroll-hint">左右滑动查看完整表格 →</p>
+    <div class="table-wrap">
+      <table class="grid" id="window-table">
+        <thead><tr><th>窗口</th><th>块</th><th>融合分</th><th>δ 分歧</th><th>A zhv2</th><th>B cmj</th><th>C 统计</th><th>增强</th><th>原因 / 建议</th><th>复制</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+  <section id="view-features" hidden>
+    <div class="section-head">
+      <div>
+        <h2>特征面板</h2>
+        <p class="hint">看语言模型的困惑度和句间波动，理解模型为什么这样判断。</p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h3>PPL 曲线</h3>
+        <span class="hint">越低越接近模型熟悉的表达</span>
+      </div>
+      <div id="ppl-chart" style="height:320px"></div>
+    </div>
+    <div id="feature-chips" class="chips"></div>
+    <p class="hint">困惑度（PPL）衡量文本「被语言模型预测的难度」：AI 文本过于流畅，PPL 系统性偏低；突发性（句间 PPL 方差/均值）人写偏高、AI 偏低。曲线按窗口顺序绘制。</p>
+    <div id="calibration-card" class="panel"></div>
+  </section>
+</main>
+<div id="drawer-mask" aria-hidden="true"></div>
+<aside id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" aria-hidden="true">
+  <div class="drawer-head"><h3 id="drawer-title"></h3><button id="drawer-close" type="button" aria-label="关闭">✕</button></div>
+  <div id="drawer-body"></div>
+</aside>
+<footer><p id="footer-meta"></p></footer>
+<script type="application/json" id="selfcheck-data">__DATA__</script>
+<script>__ECHARTS__</script>
+<script>__APP__</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# 数据分发边界：不收录第三方人写正文、派生润色样本、评分缓存、
+# 冻结切分、训练日志、探针正文与下载缓存。只保留可审计元数据与 AI 自产样本。
+calibration/raw/
+calibration/out/
+calibration/polished/
+calibration/probe/human.jsonl
+calibration/probe/score-cache.jsonl
+calibration/academic/human.jsonl
+calibration/academic/human_texts/
+calibration/academic/raw/
+calibration/academic/report.json
+calibration/academic/score-cache.jsonl
+calibration/ai_academic_lite/texts/
+calibration/ai_academic_lite/score-cache.jsonl
+calibration/ai_ark_lite/
+*.log
+*.bak
+
+# 内部计划与代理会话状态
+PLAN.md
+ROADMAP.md
+COMPETITIVE-LANDSCAPE.md
+.zcode/
+
+# 运行产物
+selfcheck-report.html
+*.selfcheck.json
+
+# 编辑器与系统
+.DS_Store
+.idea/
+.vscode/
+
+# 插件状态
+.mimosa/

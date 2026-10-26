@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # 测试全用 mock 检测器，CI 不下载任何模型
+      AIGC_SELFCHECK_MOCK: "1"
+      HF_ENDPOINT: https://hf-mirror.com
+      HF_HUB_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # torch 用 CPU 轮子 index，装得快、体积小
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+          .venv/bin/pip install -e . pytest ruff
+
+      - name: Lint
+        run: .venv/bin/ruff check src tests scripts
+
+      - name: Test
+        run: .venv/bin/pytest
+
+      # CLI 入口与 --help 不应触发重型导入
+      - name: CLI smoke
+        run: |
+          .venv/bin/aigc-selfcheck --help > /dev/null
+          echo "# 手写示例段落。这里有几句话，用来确认 mock 路径可以端到端产出报告。短句会合并，长句会进窗口。" > /tmp/sample.txt
+          .venv/bin/aigc-selfcheck /tmp/sample.txt --json --quiet --out /tmp/report.html
+          test -s /tmp/report.html
