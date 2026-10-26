@@ -26,7 +26,7 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
           .venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
-          .venv/bin/pip install -e . pytest ruff
+          .venv/bin/pip install -e . pytest ruff scikit-learn reportlab
 
       - name: Lint
         run: .venv/bin/ruff check src tests scripts
