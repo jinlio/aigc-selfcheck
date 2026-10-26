@@ -111,19 +111,19 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
   有 2% 单窗、1/25 段 P90 > 0.75（《古文观止》一段，段中位 0.671）。探针不进入
   manifest/切分，不参与任何调参；构建与复现见 `calibration/probe/README.md`。
   AI 侧 fresh 跨语域样本仍被凭据阻塞。
-- **v7 test 的 3 个人写误伤窗口（只读复核）**：2 段人写（sciencenet-jiaoxue 两个
-  重叠窗、sciencenet-liuyanzhu 一个窗）都使用「不仅……而且……」「实际上」等
+- **v7 test 的 3 个人写误伤窗口（只读复核）**：2 段人写（同一作者的两个
+  重叠窗，另一位作者一窗）都使用「不仅……而且……」「实际上」等
   议论文连接模板，`connective_density` 落在人写 train 的 100% 分位，b 路同时
   0.73–0.91；属于「学术博客议论」与「AI 议论文模板」的边界，不是数据泄漏。
-  详见 `calibration/fp-boundary-review.md`；test 已消耗，未据此调参。
+  逐窗口位数值与复核记录保存在私有训练归档；test 已消耗，未据此调参。
 - v7 历史（无上下文 c 路、α=0/0.5/0.5、μ/σ=4.67/0.81）：test 融合 AUC 0.976、
   人写误伤 4.2%、召回 89%（fresh 92% / 回填 82%）、b/c 0.974/0.945、a 0.483。
   只作历史记录，不能与 v8 横比，也不得据此调参。
 - 条件救援规则（cmj<0.2 且 Mike0307 校准≥0.8 且 c≥0.6）在 v7 test 上命中
-  0/11 个漏检窗，却新增 2 个人写误伤（wald、jiaoxue），**再次否决，不进产品**；
+  0/11 个漏检窗，却新增 2 个人写误伤，**再次否决，不进产品**；
   Mike0307 test AUC 0.944、人写 ≥0.8 占 16.9%。v8 不重启该规则。
 - 2026-10-26 第七轮扩容（v7）：人写 +28 段（8 位新作者，CC 2021 存档；剔除
-  王宏琳 4 段新闻摘要/翻译 + 2 段引导句）；AI +20 段（百炼 API 4 模型 ×5：
+  4 段新闻摘要/翻译与 2 段不完整引导句）；AI +20 段（百炼 API 4 模型 ×5：
   deepseek-v4-flash-0731、qwen3.6-flash、qwen3.7-plus、qwen3.8-flash）。
 - 一切 α/μ/阈值/风格权重决策只允许用 train split 或分组 CV（`scripts/cv_evaluate.py`；
   风格路常量的拟合入口是 `uv run --no-sync python scripts/cv_evaluate.py --fit-style`，
@@ -159,7 +159,7 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
 - v6 切分指纹 `f30895f6…`；v6 test 已消耗（融合 AUC 0.982 / 人写误伤 0.0% /
   召回 64%；b/c 0.957/0.960）。v6 常量轮把 c 路参考模型换为 Qwen3.5-2B-Base，
   μ/σ 4.65/0.84；风格路全量重拟合被否决（max 18%~50%），风格常量维持 v4。
-- 2026-10-26 第五轮扩容（v5）：人写 +14 段（科学网姬扬/王德华/武夷山，CC 2021 存档，
+- 2026-10-26 第五轮扩容（v5）：人写 +14 段（3 位学术语域新作者，CC 2021 存档，
   已审读）；AI +26 段（用户网页批 50 段去重后——批 1 的 24 段与第四轮逐字节相同
   被排除，实增通义批 1 全部 5 段 + 豆包学术摘要 1 段 + 晚间批 2 全部 20 段）。
 - 2026-10-26 GPU 实验轮（P0/P1，全部 train-only，未动常量、未碰 v5 test）：
@@ -173,11 +173,11 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
     Mike0307 校准版 AUC 0.903、救回 75% b 失明窗，但人写误伤 25.2%、LOGO max 25%。
     混合 b'=(1-w)·cmj+w·Mike 救不回失明窗（α=0.5 下需 b'>0.86），已放弃。
     条件救援规则（cmj<0.2 且 Mike 校准≥0.8 且 c≥0.6 → 标记）在 v6 test 上只新增
-    2 个命中（64%→67%）却新增 2 个人写误伤（乔中东），**已否决，不进产品**。
+    2 个命中（64%→67%）却新增 2 个人写误伤，**已否决，不进产品**。
   - 实验脚本 `_p0_lm_upgrade.py` / `_p1_b_candidates.py`（仓库外工作区），
     日志 `calibration/out/p0_lm_upgrade.log`、`p1_b_candidates.log`。
 - 2026-10-26 第六轮扩容（v6）：人写 +26 段（8 位新作者，CC 2021 存档；另剔除
-  刘进平/孙学军/钟茂初引文/王启云报表共 9 段），AI +20 段（DeepSeek v4.1-flash 网页、
+  9 段语域不符材料——翻译摘要/书摘转述/原文引用/数据报表），AI +20 段（DeepSeek v4.1-flash 网页、
   MiMo v2.6-flash 网页、GPT-6.1-sol 网页、Claude-Sonnet-5.5 网页，各 5 文体）；
   v6 切分已重建并完成一次性 test。
 
@@ -186,12 +186,14 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
 已移出仓库，保存在仓库外私有归档 `_aigc_selfcheck_private/2026-10-26-public-cleanup/`：
 
 - 第三方人写正文、审读记录与下载缓存：`calibration/raw/`、`calibration/academic/{human.jsonl,human_texts,raw,report.json,score-cache.jsonl}`、`calibration/probe/{human.jsonl,score-cache.jsonl}`
+- 逐段溯源与种子清单（含第三方文章 URL 与作者标识，不公开）：`calibration/manifest.jsonl`、`calibration/seeds.json`
+- v7 test 人写误伤逐窗复核记录（含来源标识）：`calibration/fp-boundary-review.md`
 - 派生润色样本：`calibration/polished/`
 - 冻结切分、评分缓存与训练日志：`calibration/out/`
 - 额外 AI 学术语料：`calibration/ai_ark_lite/`、`calibration/ai_academic_lite/{texts,score-cache.jsonl}`
-- 内部计划/代理状态：`PLAN.md`、`ROADMAP.md`、`COMPETITIVE-LANDSCAPE.md`、`.zcode/plans/`
+- 内部计划/代理状态：`PLAN.md`、`ROADMAP.md`、`COMPETITIVE-LANDSCAPE.md`、`.zcode/plans/`、`.mimosa/`
 
-保留：代码、测试、文档、`calibration/ai/`（AI 自产样本）、`manifest.jsonl`、`seeds.json`、`AI_PROMPTS.md`、探针 README 与不含正文的汇总。
+保留：代码、测试、文档、`calibration/ai/`（AI 自产样本）、`AI_PROMPTS.md`、探针 README 与不含正文的汇总。作者身份与逐段来源一律只做聚合表述：公开仓库不含作者名单、博主 ID 或第三方文章 URL 清单。
 
 ## 历史隔离
 
