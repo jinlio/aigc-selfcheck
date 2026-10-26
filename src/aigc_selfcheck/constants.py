@@ -29,7 +29,16 @@ p_ppl = σ((μ − log PPL) / σ)。本实现按直觉方向，公式以这里�
 #   全面优于 0/0.5/0.5：AUC 0.963 vs 0.954、召回 74.4% vs 73.1%、误伤
 #   0.0% vs 0.7%；部署常量下逐作者最大误伤 0.0% vs 18.2%（个别技术博客作者）。
 #   采纳 0/0.4/0.6。该决定只用 train，v7 test 已消耗、不再重跑。
-ALPHA = {"a": 0.0, "b": 0.4, "c": 0.6}
+# v9 决策（2026-10-27，v9 train 292 人写窗/393 AI 窗——新增 12 位统计公报作者与
+#   4 个新语域 AI 组（MiniMax 暂存组整组留出 test，train 未见），全部 train-only）：
+#   语料扩容后 c 路 AUC 0.970 已高于 b 路 0.923，b 路成为人写误伤主源（3 窗
+#   误伤中 2 窗 b≥0.85）与豆包/DeepSeek 召回拖累（这些窗 c 高 b 低）。
+#   α 网格扫描（0.50~0.90 步长 0.05，train 段落级口径）：α_c=0.80 双优——
+#   AI 段落「高」召回 88.9%→94.8%，人写段落「高」误伤 7.4%→4.6%（8→5 段，
+#   无新增误伤作者，全部为已知技术博客难例）；窗口级召回 78.1%→77.9% 基本持平、
+#   窗口误伤 1.0%→0.7%。LOGO-作者聚合检查最差作者不翻转。采纳 0/0.2/0.8；
+#   v9 test（MiniMax × 四新语域）以本配置一次性评测。
+ALPHA = {"a": 0.0, "b": 0.2, "c": 0.8}
 DISAGREE_DELTA = 0.5  # 三路两两最大差 > 0.5 → 「⚠ 三路分歧」，不做硬判定
 
 # ── C 路内部合成（文档未定处，这里定为 PPL 为主、风格为辅）──
@@ -48,11 +57,13 @@ PPL_WEIGHT_IN_C = 0.6
 # 尾部）后在 v7 train 上重导：median=3.89、μ75=4.24、σ=0.68。沿用 μ75
 # 规则取 4.24/0.68；相对 median 口径在同为 0.0% 误伤下召回 72.4%→74.4%。
 # 旧 4.67/0.81 是「无上下文」口径，与新口径不可比；v7 test 保留为历史。
-PPL_LOG_MEAN = 4.24  # μ_calib（75 分位拟合，Qwen3.5-2B-Base，v8 train/带上下文）
-PPL_LOG_STD = 0.68  # σ_calib（Qwen3.5-2B-Base，v8 train/带上下文）
+# v9（2026-10-27）：v9 train（292 人写窗，新增 12 位统计公报作者）重导
+# median=3.84、μ75=4.20、σ=0.68；Δμ=-0.04 在拟合精度内，沿用 μ75 规则取值。
+PPL_LOG_MEAN = 4.20  # μ_calib（75 分位拟合，Qwen3.5-2B-Base，v9 train/带上下文）
+PPL_LOG_STD = 0.68  # σ_calib（Qwen3.5-2B-Base，v9 train/带上下文）
 PPL_CONTEXT_TOKENS = 128  # 条件上下文长度（带上文算 PPL 更稳）
 
-# 每个参考基座独立的 PPL 校准常量（μ75/σ，均在 v8 train + 带上下文口径下导出）。
+# 每个参考基座独立的 PPL 校准常量（μ75/σ，均在 v9 train + 带上下文口径下导出）。
 # 换模型必须在此登记，否则会误用 2B 的 μ/σ；cache_id 已并入所用常量。
 # 0.5B 仅作 CPU 回退：train c AUC 0.930 / 融合 0.944 / 召回 66.3% / 人写误伤 0.0%，
 # LOGO-生成器融合 AUC mean 0.957 / min 0.869（豆包），低于 2B 的 0.972 / 0.898。
@@ -87,15 +98,18 @@ PPL_CALIBRATION: dict[str, tuple[float, float]] = {
 #   的 LOGO-作者 max 18~22%，无组合满足 ≤10% 门槛；权重/截距继续锁定 v3.2。
 #   归一化 mean/std 也未单独刷新：v7 与 v4 的作者集有重叠，刷新收益未过门槛。
 # 值均 PROVISIONAL，语料扩容后由 --fit-style 重拟合。
+# v9 决策（2026-10-27）：权重/截距继续锁定 v3.2（全量重拟合在 v9 上未重跑
+# LOGO-生成器嵌套 CV，无证据支持解锁）；归一化 mean/std 刷到 v9 train
+# （292 人写窗，新增 12 位统计公报作者），段高误伤 8→5 段、无新增误伤作者。
 STYLE_STATS: dict[str, dict[str, float]] = {
-    "period_comma_ratio": {"mean": 0.75, "std": 1.28, "weight": 1.372, "direction": -1},
-    "punct_density": {"mean": 104.46, "std": 33.85, "weight": 1.174, "direction": -1},
-    "de_density": {"mean": 43.75, "std": 20.33, "weight": 1.044, "direction": -1},
-    "char_mtld": {"mean": 47.91, "std": 25.91, "weight": 0.873, "direction": 1},
-    "colloquial_density": {"mean": 2.26, "std": 8.61, "weight": 0.648, "direction": 1},
-    "punct_diversity": {"mean": 0.29, "std": 0.57, "weight": 0.604, "direction": 1},
-    "connective_density": {"mean": 0.00, "std": 1.00, "weight": 0.530, "direction": 1},
-    "sent_initial_rate": {"mean": 0.03, "std": 0.11, "weight": 0.324, "direction": 1},
+    "period_comma_ratio": {"mean": 0.82, "std": 1.51, "weight": 1.372, "direction": -1},
+    "punct_density": {"mean": 101.80, "std": 33.52, "weight": 1.174, "direction": -1},
+    "de_density": {"mean": 43.45, "std": 21.46, "weight": 1.044, "direction": -1},
+    "char_mtld": {"mean": 42.99, "std": 21.47, "weight": 0.873, "direction": 1},
+    "colloquial_density": {"mean": 1.87, "std": 6.64, "weight": 0.648, "direction": 1},
+    "punct_diversity": {"mean": 0.46, "std": 0.75, "weight": 0.604, "direction": 1},
+    "connective_density": {"mean": 0.17, "std": 1.55, "weight": 0.530, "direction": 1},
+    "sent_initial_rate": {"mean": 0.02, "std": 0.10, "weight": 0.324, "direction": 1},
 }
 STYLE_BIAS = -2.045  # LR 截距（v3.2 train-only 拟合，v4 锁定未重拟合，PROVISIONAL）
 
