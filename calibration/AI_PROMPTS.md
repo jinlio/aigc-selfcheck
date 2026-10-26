@@ -134,3 +134,29 @@ uv run python scripts/gen_ai_api.py --model qwen3.8-max --prefix qw38 --start-no
 （仅 https、host 白名单 `dashscope.aliyuncs.com` / `.qianwenaiapi.com`、
 DNS 解析必须公网 IP、拒绝重定向、路径须含 compatible-mode）未放宽。
 本轮所有 API 调用均按该防护执行，未放宽任何限制；一次端点解析未通过公网校验时直接拒绝，未绕过。
+
+---
+
+## 第九轮（2026-10-26，v9：MiniMax-M2.5 API，四个新语域提示词包）
+
+目标语域是既有语料的空白：新闻（news）、百科说明（wiki）、公文（gov）、
+文学散文（literary）。人写侧同步补了 gov 语域的统计公报/政府工作报告段落；
+AI 侧由 `scripts/gen_ai_minimax.py` 走 MiniMax Anthropic 兼容端点批量生成
+（模型 MiniMax-M2.5，temperature=1.0 / top_p=0.95，max_tokens=3000 含思考
+预算；正文只取 `type=="text"` 块，思考内容不进语料）。
+
+每个语域包 12 个主题 × 2 个提示词模板（占位符 `{topic}`）× 6 轮重复，
+共 576 任务；成功 527 段（失败 47 条重试后仍不达长度/含清单格式的自动
+落盘标 fail），其中**每语域 10 段并入主语料 `calibration/ai/`**（40 段，
+v9 test 的整组留出生成器），其余 487 段留在本地数据归档作 v10 train 候选与
+held-out 探针。主题与提示词全文见 `scripts/gen_ai_minimax.py` 的
+`*_TOPICS` / `*_PROMPTS` 常量（新闻六要素、百科定义式、公文政策解读、
+散文意象四类，各配两个措辞不同的模板以防模板指纹）。
+
+溯源头沿用统一格式（平台/模型/日期/文体/语域/提示词/轮次/搜索/参数），
+文件名 `mm25-<语域><主题两位>-<提示词两位>-<轮次三位>-<slug>.txt`。
+校验：CJK 100–450 外自动重试（上限 4000 tokens），与既有语料 sha256 去重。
+
+安全：脚本只从环境变量读取密钥（源码/文档无凭据字面量）；SSRF 防护
+（仅 https、host 白名单 `api.minimaxi.com`、DNS 解析必须公网 IP、
+显式禁用代理与重定向）全程未放宽。
