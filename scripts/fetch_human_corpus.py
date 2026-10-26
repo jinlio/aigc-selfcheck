@@ -1,22 +1,24 @@
-"""人写语料抓取：四道保真关（计划 §5），确保「人写」成立。
+"""人写语料抓取：四道保真关，确保「人写」成立。
 
 第一道 时间截点：只收发布日期 ≤ 2021-12-31 的文本；无可靠日期的来源直接弃用
         （公版书补充层除外——年代本身即证明，单独标记 layer=classic 不与主语料混算）。
-第二道 作者手写史：种子源限定为有多年手写记录的作者/站点，每作者段落上限 5 段。
+第二道 作者手写史：种子由使用者自备，须为有多年手写记录的作者/站点，每作者
+        段落上限 5 段。不内置任何站点专属的发现逻辑。
 第三道 provenance：每段记录 URL、发布日期、抓取时间、sha256 → manifest.jsonl（入库可审计）。
-        正文仅存 calibration/raw/（.gitignore 排除，不随库分发）。
+        manifest 与正文都含第三方来源信息，保存在本地数据归档，不随库分发。
 第四道 双重抽检：统计预检剔除 AI 典型分布段落（仅作剔除依据，不作准入依据），
         并生成 REVIEW.md 供人工逐段审读勾选。
 
 网络安全：safe_fetch 强制 https + 主机白名单 + 解析 IP 私网/环回校验 + 手动逐跳重定向。
 
 用法：
-    uv run python scripts/fetch_human_corpus.py
     uv run python scripts/fetch_human_corpus.py --only-seeds --seeds-file 种子.json
-语料不足时，在 calibration/seeds.json 补充具体文章 URL（必须自带日期）后重跑：
-    [{"url": "...", "date": "2020-05-01", "author": "某作者", "source": "cnblogs"}]
-定向扩容（如 Common Crawl 已取好正文的种子）用 --only-seeds 跳过自动发现，
-并用 --seeds-file 指定独立种子文件，避免混入其他来源。
+种子文件为具体文章 URL 清单（必须自带可靠发布日期）：
+    [{"url": "...", "date": "2020-05-01", "author": "某作者", "source": "example.com"}]
+默认白名单只放行 Project Gutenberg 与 Wayback Machine；使用其他种子站点时，
+用 --allow-host 显式放行（可重复）：
+    uv run python scripts/fetch_human_corpus.py --only-seeds \
+        --allow-host www.example.com --seeds-file 种子.json
 """
 
 from __future__ import annotations
@@ -27,7 +29,6 @@ import hashlib
 import http.client
 import ipaddress
 import json
-import random
 import re
 import socket
 import ssl
@@ -35,8 +36,6 @@ import sys
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime
-from email.utils import parsedate_to_datetime
-from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlparse
@@ -66,24 +65,16 @@ UA = (
     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 )
 
-# 第二道保真关：来源准入白名单（有多年手写史的作者/站点）
+# 第二道保真关：来源准入白名单。默认只放行公版书与 Wayback 存档
+# （Wayback 快照时间戳即第三方「早于 LLM 时代」的存在证明）；其他种子站点
+# 由使用者用 --allow-host 显式放行，并自行核验其手写史与内容授权。
 ALLOWED_HOSTS = {
-    "www.ruanyifeng.com",
-    "yinwang.org",
-    "www.yinwang.org",  # 王垠博客（学术论述体随笔，RSS 全文抓取）
     "gutenberg.org",
     "www.gutenberg.org",
-    "www.cnblogs.com",
-    "news.sciencenet.cn",
-    "blog.sciencenet.cn",  # 科学网博客主域（GBK 编码，safe_fetch 已按响应编码解码）
-    # 科学网游客只能翻到约 2022 年底的博文，更早的文章页重定向到博主资料页；
-    # ≤2021-12 的学术语域老文改从 Wayback 存档快照抓取（快照时间戳即第三方
-    # 「早于 LLM 时代」的存在证明），seeds 记 wayback 快照 URL、source 标注原站。
     "web.archive.org",
-    # Matrix67（顾森，数学博士，2006 年至今手写的数学科普/学术随笔博客）。
-    "matrix67.com",
-    "www.matrix67.com",
 }
+# 运行时经 --allow-host 追加；safe_fetch 的生效白名单 = 内置 ∪ 追加。
+EXTRA_ALLOWED_HOSTS: set[str] = set()
 
 
 class FetchError(Exception):
@@ -94,7 +85,7 @@ def _validate_url(url: str, allowed_hosts: set[str] | None = None) -> None:
     parsed = urlparse(url)
     if parsed.scheme != "https":
         raise FetchError(f"拒绝非 https 地址：{url}")
-    allowed = ALLOWED_HOSTS if allowed_hosts is None else allowed_hosts
+    allowed = (ALLOWED_HOSTS | EXTRA_ALLOWED_HOSTS) if allowed_hosts is None else allowed_hosts
     if parsed.hostname not in allowed:
         raise FetchError(f"主机不在白名单：{parsed.hostname}")
     if not _egress_addresses(parsed.hostname):
@@ -307,28 +298,6 @@ def extract_paragraphs(html: str) -> list[str]:
     return parser.paragraphs
 
 
-def sciencenet_body(html: str) -> str:
-    """科学网正文容器截取：博文正文在 <td id="blog_article"> 内，
-    页面其余部分（导航、评论区）同样含 <p>，不截取会把评论者文本混进语料。"""
-    if 'id="blog_article"' not in html:
-        return html
-    start = html.find('id="blog_article"')
-    start = html.find(">", start) + 1
-    end = html.find("</td>", start)
-    return html[start:end] if end > start else html
-
-
-def matrix67_body(html: str) -> str:
-    """WordPress 正文容器截取（matrix67.com）：取 entry-content 至 </article>，
-    排除评论区 <p>。"""
-    if 'class="entry-content' not in html:
-        return html
-    start = html.find('class="entry-content')
-    start = html.find(">", start) + 1
-    end = html.find("</article>", start)
-    return html[start:end] if end > start else html
-
-
 # ── 统计预检（第四道关的一半；只用于剔除，不用于准入）───────────────────
 def stats_precheck(text: str) -> str | None:
     """返回剔除原因；None 表示通过预检（仍需人工审读）。"""
@@ -345,81 +314,6 @@ def stats_precheck(text: str) -> str | None:
 
 
 # ── 种子源发现 ────────────────────────────────────────────────────────
-def discover_ruanyifeng(max_posts: int) -> list[dict]:
-    """阮一峰博客：URL 自带年月日期，2004 年至今手写史。
-
-    归档首页只列近期文章；改为按月份页 /blog/YYYY/MM/ 发现，
-    随机抽取 ≤2021-12 的月份，逐页提取文章链接。
-    """
-    seeds: list[dict] = []
-    months = [f"{y:04d}-{m:02d}" for y in range(2004, 2022) for m in range(1, 13)]
-    random.seed(42)
-    random.shuffle(months)
-    post_urls: dict[str, str] = {}
-    for month in months:
-        if len(post_urls) * max(1, 2) >= max_posts * 3 or len(post_urls) >= max_posts * 2:
-            break
-        year, mon = month.split("-")
-        try:
-            html = safe_fetch(f"https://www.ruanyifeng.com/blog/{year}/{mon}/")
-        except Exception:  # noqa: BLE001 —— 单月失败不影响整体
-            continue
-        for url in re.findall(r'href="(https://www\.ruanyifeng\.com/blog/\d{4}/\d{2}/[^"]+\.html)"', html):
-            if url.endswith("index.html"):
-                continue
-            post_urls.setdefault(url, month)
-    sampled = random.sample(sorted(post_urls), min(max_posts, len(post_urls)))
-    for url in sampled:
-        seeds.append({"url": url, "date": f"{post_urls[url]}-01", "author": "ruanyifeng", "source": "ruanyifeng.com"})
-    return seeds
-
-
-# 有多年手写史的博客园技术博主（第二道关：来源准入）。
-# wintersun 已除名：上轮审读发现其内容多为转贴移植，不满足「作者手写」准入。
-# 注意：博客园黄金时代出书博主（artech/anytao/TerryLee/jeffreyzhao/dflying 等）
-# 归档页已 404 或空——人走档亡，学术语域改用 yinwang.org RSS（见下）。
-CNBLOGGERS = ["LittleHann", "xuanyuan", "edisontalk", "shanyou", "skychen1218"]
-
-
-def discover_cnblogs(max_posts: int) -> list[dict]:
-    """博客园：按月归档页发现旧文，作者 = URL 中的博主名，日期取月份精度。"""
-    seeds: list[dict] = []
-    months = [f"{y:04d}-{m:02d}" for y in range(2012, 2022) for m in range(1, 13)]
-    random.seed(42)
-    random.shuffle(months)
-    pairs: list[tuple[str, str, str]] = []  # (url, user, month)
-    seen_urls: set[str] = set()
-    for month in months:
-        if len(pairs) >= max_posts:
-            break
-        year, mon = month.split("-")
-        for user in CNBLOGGERS:
-            if len(pairs) >= max_posts:
-                break
-            for pattern in (
-                f"https://www.cnblogs.com/{user}/p/archive/{year}/{mon}",
-                f"https://www.cnblogs.com/{user}/archive/{year}/{mon}.html",
-            ):
-                try:
-                    html = safe_fetch(pattern)
-                except Exception:  # noqa: BLE001 —— 单页失败换下一个
-                    continue
-                for match in re.finditer(
-                    rf'href="((?:https://www\.cnblogs\.com)?/{user}/p/\d+\.html)"', html
-                ):
-                    path = match.group(1)
-                    url = path if path.startswith("http") else f"https://www.cnblogs.com{path}"
-                    if url not in seen_urls:
-                        seen_urls.add(url)
-                        pairs.append((url, user, month))
-                if pairs:
-                    break
-    random.shuffle(pairs)
-    for url, user, month in pairs[:max_posts]:
-        seeds.append({"url": url, "date": f"{month}-01", "author": f"cnblogs-{user}", "source": "cnblogs.com"})
-    return seeds
-
-
 def discover_gutenberg(max_books: int = 2) -> list[dict]:
     """公版书补充层：年代即证明，layer=classic（不与主语料混算）。"""
     seeds: list[dict] = []
@@ -449,73 +343,8 @@ def discover_gutenberg(max_books: int = 2) -> list[dict]:
     return seeds
 
 
-# 科学网（blog.sciencenet.cn）：本轮不可采集——游客分页只开放到约 2022 年底，
-# 文章 id 为全局序列、按步长行走会落到他人文章/资料页（作者归属不可靠），站内搜索 404。
-# 白名单保留该域：手工确认过的老文章仍可经 seeds.json 采集（URL 自带日期精度）。
-
-
-def discover_ruanyifeng_weekly(max_issues: int = 4) -> list[dict]:
-    """阮一峰《科技爱好者周刊》本期话题：人写的科技资讯评述语域（2018 创刊）。
-    与博客散文同作者，配合全局每作者 5 段上限混入语域多样性。"""
-    seeds: list[dict] = []
-    for month in ("2021-03", "2020-06", "2019-11", "2020-12", "2019-05", "2021-10"):
-        year, mon = month.split("-")
-        try:
-            html = safe_fetch(f"https://www.ruanyifeng.com/blog/{year}/{mon}/")
-        except Exception:  # noqa: BLE001
-            continue
-        for url in re.findall(r'href="(https://www\.ruanyifeng\.com/blog/\d{4}/\d{2}/weekly-issue-\d+\.html)"', html):
-            if url not in [s["url"] for s in seeds]:
-                seeds.append({"url": url, "date": f"{month}-15", "author": "ruanyifeng",
-                              "source": "ruanyifeng.com", "register": "weekly"})
-                break
-        if len(seeds) >= max_issues:
-            break
-    return seeds
-
-
-# 王垠博客（yinwang.org）：耶鲁/印第安纳 CS 博士肄业，2005 年至今全手写的学术论述体随笔。
-# 站点已重建为 SPA、文章页无服务端文本；RSS（feed.xml）为全量归档且带全文 description，
-# 因此本源直接从 RSS 取段落（seeds 附 paragraphs，collect 不再抓文章页），日期精确到天。
-_YW_AD_TITLE = re.compile(r"招生|特价|培训|第\s*\d+\s*期|简历|课程")
-
-
-def discover_yinwang(max_posts: int = 8) -> list[dict]:
-    try:
-        xml = safe_fetch("https://yinwang.org/feed.xml")
-    except Exception as exc:  # noqa: BLE001
-        print(f"  [skip] yinwang 不可达：{exc}")
-        return []
-    seeds: list[dict] = []
-    for item in re.findall(r"<item>(.*?)</item>", xml, re.S):
-        title = re.search(r"<title>([^<]+)</title>", item)
-        link = re.search(r"<link>(https?://[^<]+)</link>", item)
-        pub = re.search(r"<pubDate>([^<]+)</pubDate>", item)
-        desc = re.search(r"<description>(.*?)</description>", item, re.S)
-        if not (title and link and pub and desc and "/posts/" in link.group(1)):
-            continue
-        date = parsedate_to_datetime(pub.group(1)).date().isoformat()
-        if date > DATE_CUTOFF or _YW_AD_TITLE.search(title.group(1)):
-            continue
-        paragraphs = extract_paragraphs(unescape(desc.group(1)))
-        if paragraphs:
-            seeds.append(
-                {
-                    "url": link.group(1),
-                    "date": date,
-                    "author": "yinwang",
-                    "source": "yinwang.org",
-                    "register": "essay",  # 学术论述体随笔
-                    "publish_date_precision": "day",
-                    "paragraphs": paragraphs,
-                }
-            )
-    random.Random(7).shuffle(seeds)  # noqa: S311 —— 固定种子保证语料采样可复现，非加密用途
-    return seeds[:max_posts]
-
-
 def load_seed_file(path: Path = SEEDS_FILE) -> list[dict]:
-    """用户补充的具体文章 URL（cnblogs/科学网等），必须自带可靠日期。"""
+    """使用者自备的具体文章 URL 种子，必须自带可靠发布日期。"""
     if not path.exists():
         return []
     items = json.loads(path.read_text(encoding="utf-8"))
@@ -524,7 +353,7 @@ def load_seed_file(path: Path = SEEDS_FILE) -> list[dict]:
         if not item.get("date"):
             print(f"  [gate1] 丢弃无日期种子：{item.get('url')}")
             continue
-        if urlparse(item["url"]).hostname not in ALLOWED_HOSTS:
+        if urlparse(item["url"]).hostname not in ALLOWED_HOSTS | EXTRA_ALLOWED_HOSTS:
             print(f"  [gate2] 丢弃白名单外种子：{item.get('url')}")
             continue
         kept.append(item)
@@ -548,18 +377,10 @@ def collect(
     only_seeds: bool = False,
     seeds_file: Path = SEEDS_FILE,
 ) -> list[dict]:
-    # 顺序即配额优先级：周刊（资讯评述语域）先于同作者的博客散文，否则散文会占满配额
     if only_seeds:
         seeds = load_seed_file(seeds_file)
     else:
-        seeds = (
-            discover_ruanyifeng_weekly()
-            + discover_yinwang()
-            + discover_ruanyifeng(max_posts=25)
-            + discover_cnblogs(max_posts=25)
-            + load_seed_file(seeds_file)
-            + discover_gutenberg()
-        )
+        seeds = load_seed_file(seeds_file) + discover_gutenberg()
     print(f"种子共 {len(seeds)} 条")
     records: list[dict] = []
     # 配额以 manifest 已有计数为基线：新增段与已入库段合计不超每作者/每篇上限
@@ -570,21 +391,17 @@ def collect(
             continue
         if per_post.get((seed["author"], seed["url"]), 0) >= PER_POST_CAP:
             continue  # 该篇跨次运行已取满，不再碰（否则每次运行都会从同一篇续取）
-        paragraphs = seed.get("paragraphs")  # RSS 源已在发现阶段取好全文段落
-        if paragraphs is None:
-            try:
-                raw = safe_fetch(seed["url"])
-            except Exception as exc:  # noqa: BLE001
-                print(f"  [skip] {seed['url']}: {exc}")
-                continue
-            if seed["source"] == "gutenberg.org":
-                paragraphs = gutenberg_paragraphs(raw)
-            elif "sciencenet" in seed["source"]:
-                paragraphs = extract_paragraphs(sciencenet_body(raw))
-            elif "matrix67" in seed["source"]:
-                paragraphs = extract_paragraphs(matrix67_body(raw))
-            else:
-                paragraphs = extract_paragraphs(raw)
+            paragraphs = seed.get("paragraphs")  # 种子可自带全文段落（如 RSS 全文），有则不再抓文章页
+            if paragraphs is None:
+                try:
+                    raw = safe_fetch(seed["url"])
+                except Exception as exc:  # noqa: BLE001
+                    print(f"  [skip] {seed['url']}: {exc}")
+                    continue
+                if seed["source"] == "gutenberg.org":
+                    paragraphs = gutenberg_paragraphs(raw)
+                else:
+                    paragraphs = extract_paragraphs(raw)
         for para in paragraphs:
             cjk = cjk_count(para)
             if not (MIN_CJK <= cjk <= MAX_CJK) or len(split_sentences(para)) < MIN_SENTS:
@@ -628,7 +445,7 @@ def main() -> int:
     parser.add_argument(
         "--only-seeds",
         action="store_true",
-        help="只处理种子文件，跳过自动发现（用于受控的定向扩容）",
+        help="只处理种子文件，跳过公版书自动发现（用于受控的定向扩容）",
     )
     parser.add_argument(
         "--seeds-file",
@@ -636,7 +453,15 @@ def main() -> int:
         default=SEEDS_FILE,
         help="种子文件路径（默认 calibration/seeds.json）",
     )
+    parser.add_argument(
+        "--allow-host",
+        action="append",
+        default=[],
+        metavar="HOST",
+        help="额外放行的种子站点主机名（可重复）；内置白名单仅 gutenberg.org 与 web.archive.org",
+    )
     args = parser.parse_args()  # 每作者上限使用常量 PER_AUTHOR_CAP
+    EXTRA_ALLOWED_HOSTS.update(args.allow_host)
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)

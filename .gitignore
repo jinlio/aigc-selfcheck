@@ -10,9 +10,13 @@ build/
 
 # 数据分发边界：不收录第三方人写正文、派生润色样本、评分缓存、
 # 冻结切分、训练日志、探针正文与下载缓存。只保留可审计元数据与 AI 自产样本。
+# 注意：manifest/seeds 含第三方文章 URL 与作者标识，同样不公开。
 calibration/raw/
 calibration/out/
 calibration/polished/
+calibration/manifest.jsonl
+calibration/seeds.json
+calibration/fp-boundary-review.md
 calibration/probe/human.jsonl
 calibration/probe/score-cache.jsonl
 calibration/academic/human.jsonl
