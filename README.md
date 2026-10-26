@@ -1,0 +1,197 @@
+# aigc-selfcheck（墨鉴）
+
+**AI 辅助写完，提交前先把它改得像你自己的文章。**
+
+今天大多数论文都不是纯手写的：查资料、搭框架、润色语句，AI 已经进入写作流程。真正让人头疼的是，交上去之后文章被平台标成「AI 生成」，而你又不想为了降 AI 率把结构、论证和数据改乱。
+
+本工具在本地做三件事：
+
+1. 找出最容易被判成 AI 的段落和句子；
+2. 用普通学生能看懂的话解释「为什么像 AI」，并引用原文里的具体词句；
+3. 在**不改变文章结构、事实、数据、引用**的前提下，给出具体改法；配置足够时，再用本地基座模型给出一句贴合原文的改写示例。
+
+输入论文（`.docx` / 文本型 `.pdf` / `.txt` / `.md`），输出一份单文件 HTML 报告：0–100 综合风险分、逐句热力图、章节地图、修改计划、改稿前后对比。文本不上传，不需要账号。
+
+```bash
+uv sync
+uv run aigc-selfcheck 论文.docx --profile balanced
+# → selfcheck-report.html，双击即可查看
+```
+
+目标是把 AI 辅助留下的模板化痕迹降下来，让文章更像你自己的表达；**不承诺通过知网、朱雀等任何官方检测**。
+
+## 它和「AI 率检测器」有什么不同
+
+大多数工具只给一个百分比。本工具面向提交前的真实决策，解决五个具体问题：
+
+1. **为什么这段被标**：不只说「连接词多」，而是引用原文里的「随着……不断发展」「首先、其次、综上所述」，再解释这种写法为什么像模板。
+2. **先改哪一段**：修改计划按「单独处理这一段后全文综合分会下降多少」排序，避免全文盲目重写。
+3. **哪些地方不该改**：公式/符号密集、方法/结果/结论段、三路分歧大、文本偏短时，明确提示先人工确认，不要为了降分删改实验细节。
+4. **具体怎么改**：规则建议覆盖模板开头、空泛总结、排比句式、句首重复、连接词过密等类型；开启 `--llm-advice` 后，本地 Qwen 基座会针对最高风险窗口给出一句改写示例，并经过「不新增数字或效果承诺、不偏离原文」校验。
+5. **改完有没有变好**：`--compare-with` 对比旧版，输出综合分、区间带和章节级变化。
+
+它不是知网、万方、朱雀等任何官方检测系统的替代品，也不能预测它们的判定。低分不保证通过，高分也不代表确有 AI 代写。
+
+## 报告里有什么
+
+- 首屏 **0–100 综合风险分**（低 0–34 / 中 35–64 / 高 65–100）与区间带、证据是否充足。
+- **逐句热力图**：点句子看白话原因、原文证据、修改建议、三路分数和 PPL 技术细节。
+- **章节地图**：按标题聚合 median/P90/综合分，快速定位高风险章节。
+- **修改计划**：按单段敏感性排序，并标出「先别改」的段落。
+- **所在段落改写示例（实验性）**：只对最高风险的少量窗口生成，明确标注「需人工确认」，不自动替换原文。
+- **校准卡**：v8 通用校准与学术探针的指标、样本量和局限。
+- **改稿对比**：单独生成一份 `selfcheck-compare.html`。
+- 自动跳过标题、作者信息、参考文献、公式、图注、引文、表格，并在报告中灰显。
+
+## 三档配置：低配能跑，高配更准
+
+| 档位 | 检测路 | 设备 | 适合 |
+|---|---|---|---|
+| `lite` | b + c（0.5B） | 纯 CPU | 低配笔记本、内存紧张；保证能跑，精度略低，只用规则建议 |
+| `balanced` | b + c（2B） | auto | 默认推荐；兼顾速度与精度，有加速设备时默认开启模型改写示例 |
+| `max` | a + b + c（2B） | auto | 配置足够；完整三路，可再叠加 `--enhanced` |
+
+三档共享同一套融合、区间带和解释逻辑，差别只在检测路、基座模型和是否默认生成模型建议。低配机器不会因为跑不动而得到一份「空白报告」；高配机器则能拿到更高召回和更具体的建议。纯 CPU 运行时，`balanced`/`max` 会自动跳过 2B 模型改写（只保留规则建议），避免低配机器被生成拖慢；需要强制生成时显式加 `--llm-advice`。
+
+## 工作原理
+
+三路检测器独立打分，再融合成一个窗口分数：
+
+| 路 | 模型 | 特点 |
+|---|---|---|
+| a | `yuchuantian/AIGC_detector_zhv2`（RoBERTa-wwm-ext 分类器） | 对 2023 年代模型文风敏感，对新模型有时代差 |
+| b | `mokawa3018/cmj-chinese-aigc-text-detector`（ONNX） | 中文 AIGC 专训，主力路 |
+| c | `Qwen/Qwen3.5-2B-Base` PPL + 统计风格特征 | 语言模型困惑度 + 句读节奏、标点密度、词汇多样性、「的」字密度等可解释特征；特征方向与权重由校准集 train split 拟合的逻辑回归给出（v3.2；v6 起参考模型换 2B，v8 修正上下文口径后重导 μ/σ 为 4.24/0.68；CPU 回退可换 0.5B，μ/σ 4.13/0.64） |
+
+融合采用对可用路重归一化的加权和，取文档所有窗口的 **median（基调）与 P90（尾部）** 组成区间带；连续多窗高分离段标记为「集中高险段」。每句的风险值来自覆盖它的最高分窗口，但白话原因和修改建议会用这一句自身的文本重新生成，引用的证据一定出现在这一句里；z/PPL 等原始指标折叠在「技术细节」里，默认只显示普通用户能看懂的解释。
+
+解释层先做「规则兜底」：从 C 路 meta 里取 PPL 与风格 z 值，再从原文匹配模板开头、空泛总结、排比/对仗、句首重复、单句过长等文本证据，生成带原文引用的原因和修改建议。开启 `--llm-advice` 后，再让已加载的 Qwen 基座对最高风险窗口做一次受约束改写；结果必须与原句共享至少两个中文二元组、不能出现原文没有的数字或效果承诺（例如原文没有的「鲁棒性」「准确性」），否则丢弃并回退到规则建议。
+
+档位只改变「用哪些检测路、跑多大模型、是否默认生成建议」，不改变融合公式和区间带阈值。这样低配机器和高配机器看到的是同一套判定标准，差别只在证据量和建议的具体程度。
+
+## 安装
+
+需要 Python 3.11+ 与 [uv](https://docs.astral.sh/uv/)：
+
+```bash
+git clone https://github.com/jinlio/aigc-selfcheck-public.git aigc-selfcheck
+cd aigc-selfcheck
+uv sync
+```
+
+模型权重约 2 GB，首次使用前下载一次（之后全程离线）：
+
+```bash
+uv run python scripts/download_models.py
+uv run python scripts/download_models.py --cpu-fallback  # 另下 0.5B（纯 CPU 回退，约 1GB）
+```
+
+## 网络受限环境
+
+模型从 Hugging Face 下载。如果你的网络无法直连 huggingface.co：
+
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+export HF_HUB_DISABLE_XET=1   # 必须禁用：Xet 传输会绕过镜像直连 CDN，被墙网络下超时
+```
+
+`scripts/download_models.py` 已默认带这两个变量。安装依赖时若 pypi.org 不通，可换清华镜像：
+
+```bash
+export UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+## 使用
+
+```bash
+uv run aigc-selfcheck 论文.docx --profile balanced   # 推荐：b+c、2B、自动设备
+uv run aigc-selfcheck 论文.docx --profile lite       # 低配：纯 CPU、0.5B，只用规则建议
+uv run aigc-selfcheck 论文.docx --profile max        # 高配：a+b+c 三路
+uv run aigc-selfcheck 论文.pdf                       # 文本型 PDF（扫描件需先 OCR）
+uv run aigc-selfcheck 文章.md --out 报告.html         # 指定输出路径
+uv run aigc-selfcheck 论文.docx --json                # 机器可读 JSON 到 stdout（可与 --out 并用）
+uv run aigc-selfcheck 论文.docx --llm-advice          # 强制开启本地模型改写示例
+uv run aigc-selfcheck 论文.docx --no-llm-advice       # 关闭档位默认的模型建议
+uv run aigc-selfcheck 论文.docx --enhanced            # 实验性增强召回（提高召回，但会增加误报）
+uv run aigc-selfcheck 新版本.docx --compare-with 旧版本.docx --out compare.html
+```
+
+支持 `.docx`、文本型 `.pdf`、`.txt`、`.md`。扫描版 PDF 需要先 OCR；加密 PDF 需要先解除密码。`--json` 输出的 schema 为 `aigc-selfcheck/report@v1`，对比输出为 `aigc-selfcheck/compare@v1`。
+
+设备自动按 `cuda → mps → cpu` 选择（Apple Silicon 走 MPS）；ONNX 路恒为 CPU。万字文本在 M 系芯片上约几十秒，纯 CPU 数分钟。模型改写只处理最高风险的 3 个窗口；有加速设备时随档位默认开启，纯 CPU 时自动跳过（实测 2B 在 CPU 上生成 3 条约需 2 分钟），显式加 `--llm-advice` 可强制开启。生成失败或校验不通过时自动回退到规则建议，不会阻断报告。
+
+## Agent Skill（给 AI 助手用）
+
+仓库自带一个本地 Skill：`skills/aigc-selfcheck/`。它把 CLI 包装成 `check` / `explain` / `plan` / `compare` 四个动作，适合让 AI 助手在提交前帮你读报告、排修改顺序。
+
+```bash
+python skills/aigc-selfcheck/scripts/check.py 论文.docx --profile balanced --out report.html
+python skills/aigc-selfcheck/scripts/explain.py 论文.docx --top 8
+python skills/aigc-selfcheck/scripts/plan.py 论文.docx
+python skills/aigc-selfcheck/scripts/compare.py 新版本.docx --old 旧版本.docx --out compare.html
+```
+
+`check.py` 支持 `--profile`、`--llm-advice` / `--no-llm-advice`，其余动作复用同一套 CLI 参数。安装到 ZCode 全局技能目录：
+
+```bash
+cp -r skills/aigc-selfcheck ~/.zcode/skills/aigc-selfcheck
+```
+
+边界：只接受本地文件；不读取凭据；不上传文本；只给修改建议，不自动改写论文；不承诺知网/朱雀结果。完整说明见 [skills/aigc-selfcheck/SKILL.md](skills/aigc-selfcheck/SKILL.md)。
+
+## 校准现状与局限
+
+校准集与评测结论见 [calibration/README.md](calibration/README.md)。**公开仓库只分发代码、AI 自产样本与可审计元数据**；人写正文、润色派生样本、评分缓存、训练日志和探针正文不随库分发，下列指标来自私有训练归档。先看校准卡：
+
+| 数据集 | 指标 | 结果 |
+|---|---|---|
+| 通用校准集（v8 train，268 人写 / 297 AI 窗） | 融合 AUC | 0.963 |
+| | 人写误伤 | 0.0%（0/268） |
+| | 召回 | 74.4%（221/297） |
+| 学术探针 · 默认融合（114 人写 / 351 AI 窗） | AI 窗口召回 | 94.9% |
+| | 人写窗口误伤 | 2.6% |
+| | 人写文档「高」带 | 11.1% |
+| 学术探针 · 增强召回（实验性） | AI 窗口召回 | 98.6% |
+| | 人写窗口误伤 | 3.5% |
+| 合并探针（非真实先验） | 默认 P / R / F1 | 99.1 / 94.9 / 96.9 |
+| | 增强 P / R / F1 | 98.9 / 98.6 / 98.7 |
+
+**读校准卡前先看这三条**：通用数字是 v8 train 内结果，不是独立 test；学术探针的 AI 占比不代表真实先验；所有数字都不能预测知网/朱雀的判定。详细说明与局限见下方要点。
+
+这些指标衡量的是**本工具区分人写与 AI 文本的能力**，不是任何平台的「AI 率」。不同平台的检测模型、阈值和训练语料都不同，本工具的低分不能保证平台也给低分；修改后是否真的降低了平台 AI 率，需要在目标平台复测。本工具能做的是把已知的模板化痕迹压下去，并避免为了降分破坏论文本身。
+
+- **样本量小**：当前私有校准集为 123 段人写（30 位作者：资讯评述、技术博客、学术论述/科普语域，均有 2021 年前的连续手写记录与日期可查，其中科学网 22 位学者/教授的旧文经 Common Crawl 2021 年存档取回，v7 新增 8 位 28 段）、153 段 AI 生成（19 个生成器：GLM/DeepSeek/Kimi/豆包/ChatGPT/通义/Gemini/Claude/MiMo/GPT-6.1-sol 网页版 + 百炼 API 8 模型）、6 段润色。公开仓库只保留 153 段 AI 自产样本与元数据，人写、润色与探针正文不随库分发。以下数字**不可外推**。
+- **适用语域**：校准语料集中在**科技/学术相邻语域**（技术说明、学术论述、科普、方法建议等「论文自检」目标场景）。文学创作、财经法律评论、新闻报道等其他语域**未经校准**。v8 用四个目标语域之外的人写探针（现代文学、现代散文、晚清小说、文言散文，共 100 段 / 309 窗，report-only）测过一次：段落中位分全部低于红线（段误伤 0%），文言散文有 2% 单窗与 1/25 段 P90 越过 0.75 的尾部风险。样本小、只有人写侧，**仍不要在目标场景之外把结论当作定论**；详见 [calibration/probe/README.md](calibration/probe/README.md)。
+- **方向性验证（v3 口径的历史演示，v7/v8 未重跑）**：三类代表文档过完整流水线，中位分呈单调梯度——手写 0.238（低）、AI 生成 0.788（高）、AI 润色 0.586（居中）。v8 的 c 路口径与融合权重均已变化，该组数字不应视为当前版本的实测结果。
+- **test split（v7 历史结果，170 窗；当前代码已不适用）**：v7 在「无上下文」的 c 路口径与 α=0/0.5/0.5 下做过一次性评测：融合 AUC 0.976（≥0.85 ✓）；人写误伤率 4.2%（3/71 窗）；b/c 路 AUC 0.974/0.945；窗口召回 89%（85/96），其中 4 个全新生成器 92%（58/63）、2 个旧 train 整组回填 82%（27/33）；a 路 AUC 0.483。**v8 修正了 c 路上下文口径并重导常量，这批数字只作历史记录，不能与当前版本横比，也不得据此调参。** v8 的新 test 需要新语料/新切分，尚未运行。
+- **v8 上下文口径修正与常量轮（train-only）**：v7 及以前的 c 路缓存键不含上下文，且 `pipeline.py` 把「前一个重叠窗口的尾部」当上下文——滑窗步长 1 句时这会把当前窗口自身喂给模型，log-PPL 被系统性压低。v8 改为取**窗口起点之前的正文**（`contexts.preceding_context`），缓存键并入上下文指纹；校准集落盘 `context` 字段，产品与校准两条路径同口径。修正后在 v7 train（268 人写 / 297 AI 窗）上重导 μ75/σ = **4.24 / 0.68**，并把融合权重从 0/0.5/0.5 调为 **0/0.4/0.6**（train AUC 0.954→0.963、召回 73.1%→74.4%、人写误伤 0.7%→0.0%；LOGO-生成器 c 路 mean/min 0.977/0.920，融合 0.972/0.898；LOGO-作者 median-refit 误伤 0.0%）。c 路缓存指纹 `Qwen/Qwen3.5-2B-Base@42370d51a253`；v7 的 4.67/0.81 与 `@f9b9ce144dc9` 保留为历史。风格路全量重拟合仍被未见作者门槛否决，权重/归一化不动。
+- **v8 CPU 回退（train-only，report-only）**：0.5B 在同一 train/上下文口径下独立导出 μ75/σ = **4.13 / 0.64**，c 路 AUC 0.930、融合 AUC 0.944、召回 66.7%、人写误伤 0.0%；LOGO-生成器融合 AUC mean 0.957 / min 0.869（豆包）。它仍过验收线，但明显弱于 2B（0.963 / 74.4% / min 0.898），只在 2B 跑不动的纯 CPU 环境使用；缓存指纹 `Qwen/Qwen2.5-0.5B@73abc54f56f1`。
+- **学术语域探针与增强召回（report-only，2026-10-26）**：45 段 2020 年 HansPub 人写论文段落 + 140 段豆包 Lite 学术章节（7 章节 × 20 主题）。默认固定融合在 AI 学术上窗口召回 **94.9%**、文档「高」带 **100%**、段落中位 >HOT **97.9%**；人写学术窗口误伤 **2.6%**、文档「高」带 **11.1%**、段落中位 >HOT **0%**。误伤集中在「方法 / 结果与讨论 / 结论」，引言为 0%。可选 `--enhanced` 用通用 train 上拟合的元分类器做灰度区增强（融合 >0.55 且 meta > 阈值）：通用 LOGO-生成器召回均值 **85.2%**（默认 75.0%），代价是 LOGO-作者误伤均值 **1.7%** / 最差 **11.1%**；学术探针上 AI 窗口召回 **98.6%**、人写窗口误伤 **3.5%**（段中位 0%）。把两组探针窗口合并（351 AI + 114 人写，非真实先验），默认 P/R/F1 = **99.1/94.9/96.9**，增强 = **98.9/98.6/98.7**。它未通过「LOGO 召回均值 ≥90%」的默认门槛，**默认关闭**；报告里会标为实验性。方法与结果见 [calibration/academic/README.md](calibration/academic/README.md)、[calibration/ai_academic_lite/README.md](calibration/ai_academic_lite/README.md)；逐段正文、评分缓存与训练日志不随公开仓库分发。
+- **当前主要短板**：v8 train 上人写误伤为 0.0%，但这是 train 内结果，不能替代 test；LOGO-生成器显示豆包（融合 AUC 0.898）与 DeepSeek（0.949）仍是弱项，b 路在豆包上仅 0.824。召回 74.4% 仍有提升空间，且样本量小、数字会随语料扩容更新。P1 的「cmj 失明 → Mike0307 条件复核」规则在 v7 test 上命中 0/11 个漏检窗却新增 2 个人写误伤，已否决，v8 不重启。v7 test 的 3 个人写误伤窗已复核为「学术博客议论 + 模板化连接词」的真实边界，不是数据泄漏；见 [calibration/fp-boundary-review.md](calibration/fp-boundary-review.md)。
+- 所有校准常量为 provisional，代码中集中标注于 `constants.py`；风格权重拟合入口为 `scripts/cv_evaluate.py --fit-style`。
+
+## 隐私与安全
+
+- 文本不联网、不上传、不留痕；唯一的网络行为是下载模型权重。
+- 模型改写示例完全在本机生成，不调用任何云端 API；生成结果只作建议，不自动替换原文。
+- 模型加载一律 `trust_remote_code=False`，仅从 Hugging Face 官方端点拉取。
+- 语料抓取脚本带域名白名单与私网地址过滤，人写正文、润色派生样本与探针正文不入库（版权约束）。
+
+## 免责声明
+
+本工具输出**启发式风险估计**，与知网、万方、朱雀等任何官方检测系统无关，不构成对任何系统结果的预测。低分不保证通过检测，高分也不代表确有 AI 代写。请把它当作一面参考镜，而不是法官。
+
+## 开发
+
+```bash
+uv run pytest      # 全部测试走 mock 检测器，CI 不下载模型
+uv run ruff check src tests scripts
+```
+
+校准流水线：`scripts/fetch_human_corpus.py`（人写语料抓取，四道保真关）→ `scripts/build_calibration.py`（seed=42 冻结切分）→ `scripts/evaluate.py`（AUC / 误伤率 / 常量拟合）。
+
+设计文档见 [ALGORITHM.md](ALGORITHM.md)；训练与校准复现见 [TRAINING.md](TRAINING.md)。
+
+## License
+
+[MIT](LICENSE)

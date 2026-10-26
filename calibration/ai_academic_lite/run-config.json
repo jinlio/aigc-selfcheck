@@ -1,0 +1,14 @@
+{
+  "model": "doubao-seed-2-1-lite-260915",
+  "base_url": "https://ark.cn-beijing.volces.com/api/coding/v3",
+  "pack": "academic",
+  "prefix": "arkacad",
+  "loops": 20,
+  "workers": 6,
+  "attempts": 3,
+  "max_tokens": 800,
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "date": "2026-10-26",
+  "started_at": "2026-10-26T16:41:36"
+}
