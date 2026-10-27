@@ -70,8 +70,8 @@
     "median_of_medians": 0.4616860237609742,
     "mean_of_medians": 0.4544450589999295,
     "paragraph_fp_median": 0.0,
-    "paragraph_fp_p90": 0.013513513513513514,
-    "window_fp": 0.004807692307692308
+    "paragraph_fp_p90": 0.02027027027027027,
+    "window_fp": 0.007211538461538462
   },
   "paragraphs": [
     {

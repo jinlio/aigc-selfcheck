@@ -57,6 +57,7 @@ from aigc_selfcheck.constants import (  # noqa: E402
 from aigc_selfcheck.contexts import window_contexts  # noqa: E402
 from aigc_selfcheck.detectors.stats_lm import StatsDetector  # noqa: E402
 from aigc_selfcheck.features import window_features  # noqa: E402
+from aigc_selfcheck.fuse import mtld_arbitration  # noqa: E402
 from aigc_selfcheck.preprocess import split_sentences  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1] / "calibration"
@@ -298,7 +299,9 @@ def fused(unit: dict, alpha: dict[str, float], c_override: float | None = None) 
     p_fuse = sum(scores[k] * alpha[k] for k in active) / sum(active.values())
     if scores.get("b", 0.0) >= BOOST_B and scores.get("c", 0.0) >= BOOST_C:
         p_fuse = max(p_fuse, BOOST_FLOOR)
-    return p_fuse
+    # v12：与产品 fuse.mtld_arbitration 同规则（b 高 / c 低时用 char_mtld 裁决）
+    features = (unit.get("meta_c") or {}).get("features") or {}
+    return mtld_arbitration(p_fuse, scores, features)
 
 
 # ── --fit-style：风格路 LR 重拟合（v3.2 起的常量来源，全部 train-only）──

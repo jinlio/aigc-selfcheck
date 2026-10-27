@@ -28,6 +28,11 @@ from .constants import (
     HEATMAP_LOW,
     HOT_RUN_LENGTH,
     HOT_RUN_THRESHOLD,
+    MTLD_B_HI,
+    MTLD_C_LO,
+    MTLD_FLOOR,
+    MTLD_HI,
+    MTLD_LO,
 )
 
 
@@ -67,6 +72,10 @@ def fuse_scores(scores: dict[str, float]) -> tuple[float, float]:
     v11 起：b 路非常确定（≥BOOST_B）且 c 路至少中等确定（≥BOOST_C）时，
     融合分至少抬到 BOOST_FLOOR。规则只在 train 上选定，用于补回 b 路高置信
     但被 c 拉低的文学/口语 AI 窗口；人写段高与跨语域探针不变。
+
+    注意：本函数只拿到三路分数，无法施加 v12 的 mtld 分歧裁决
+    （`apply_mtld_arbitration`），因为那需要窗口特征。产品路径在
+    `pipeline` 里对 `fused` 列表调用后者；离线评测走 `cv_evaluate.fused`。
     """
     if not scores:
         return 0.0, 0.0
@@ -78,6 +87,41 @@ def fuse_scores(scores: dict[str, float]) -> tuple[float, float]:
     values = list(scores.values())
     delta = max(values) - min(values) if len(values) >= 2 else 0.0
     return p_fuse, delta
+
+
+def mtld_arbitration(
+    p_fuse: float,
+    scores: dict[str, float],
+    features: dict[str, float] | None,
+) -> float:
+    """v12：b 高 / c 低的分歧区用 char_mtld 裁决（只抬分、不压分）。
+
+    命中条件 `b≥MTLD_B_HI`、`c<MTLD_C_LO`、`MTLD_LO≤char_mtld≤MTLD_HI`
+    时把融合分抬到至少 MTLD_FLOOR。上界挡住文言/古白话（mtld 常 >160）。
+    缺特征（旧缓存/异常路径）时原样返回，行为与 v11 一致。
+    """
+    if not features:
+        return p_fuse
+    if scores.get("b", 0.0) < MTLD_B_HI or scores.get("c", 0.0) >= MTLD_C_LO:
+        return p_fuse
+    mtld = features.get("char_mtld")
+    if mtld is None or mtld != mtld:
+        return p_fuse
+    if MTLD_LO <= float(mtld) <= MTLD_HI:
+        return max(p_fuse, MTLD_FLOOR)
+    return p_fuse
+
+
+def apply_mtld_arbitration(fused: list[FusedWindow]) -> int:
+    """就地施加 mtld 分歧裁决；返回被抬分的窗口数。"""
+    changed = 0
+    for window in fused:
+        meta_c = window.metas.get("c") or {}
+        new_value = mtld_arbitration(window.p_fuse, window.scores, meta_c.get("features"))
+        if new_value > window.p_fuse:
+            window.p_fuse = new_value
+            changed += 1
+    return changed
 
 
 def sentence_risks(sentences_count: int, fused: list[FusedWindow]) -> list[float]:
