@@ -31,6 +31,17 @@ AI_CONNECTIVE_PATTERNS = [
 # 口语痕迹：学术 AI 文本几乎为 0，但手写论文也低——使用时降权
 COLLOQUIAL_MARKERS = ["其实", "挺", "蛮", "吧", "呢", "反而"]
 
+# 官方文体专名/固定表述：人写公文（政府工作报告、公报、白皮书）密集引用，
+# 而生成式模型通常只写泛化政策语言。作为单侧「人写证据」，缺席为 0。
+OFFICIAL_REFS = [
+    "中国特色社会主义", "党中央", "国务院", "全国人民代表大会", "全国人大",
+    "最高人民法院", "最高人民检察院", "党的十九大", "二十大",
+    "四个意识", "四个自信", "两个维护", "五位一体", "四个全面",
+    "人民法院", "人民检察院", "审计署", "财政部", "国家统计局",
+    "发展改革委", "教育部", "科技部", "工业和信息化部", "公安部",
+    "中央军委", "全国政协", "中央纪委", "国家监察委员会",
+]
+
 # 数学/公式符号集合（公式块识别用）
 MATH_SYMBOLS = set("Σ∫≤≥∈≠≈±×÷∑∏√∞∂∇=<>+-*/^|\\{}$&~")
 
@@ -116,6 +127,73 @@ def sentence_length_variance(lengths: list[int]) -> float:
     return statistics.pvariance(lengths)
 
 
+# ── v10 新增：数字与正式文体特征 ──
+# 动机（v10 train 诊断）：官方公报/统计公报的 log-PPL 极低，PPL 路把它们当成 AI
+# （公文 p_ppl 中位 0.97，高于 AI 整体的 0.87），而风格路对公文与普通人写几乎
+# 同分（0.28 vs 0.22）。数字类特征补上了这块：统计公报每千字数字密度约 170，
+# AI 各语域不超过 14；AI 公文式枚举（顿号）与文言虚词也明显更高。
+# v10c 修正：这些特征不能走「全量重拟合」——重拟合会抬高截距，把没有数字的
+# 人写（古典散文探针）整体推向 AI。改为两段式：base8 保持 v9 权重/截距，
+# 只用归一化后的「证据」特征做「有则减分、缺席为 0」的事后修正。
+DIGIT_RE = re.compile(r"[0-9０-９]")
+NUM_UNIT_RE = re.compile(
+    r"[0-9０-９]+(?:\.[0-9]+)?(?:%|％|亿元|万元|亿|万|个|项|人|次|年|月|日|倍|百分点)"
+)
+FORMAL_PARTICLES = "该其之本据于及与并而则"
+
+
+def digit_density(text: str, cap: float = 60.0) -> float:
+    """数字字符密度（每千汉字，截断 60）。统计公报类文本极高，AI 接近 0。
+
+    截断是为了避免表格化公报获得过强的人写证据（未截断时权重会压过其他特征）。
+    """
+    cjk = max(1, cjk_count(text))
+    return min(len(DIGIT_RE.findall(text)) / cjk * 1000, cap)
+
+
+def num_unit_density(text: str, cap: float = 50.0) -> float:
+    """数字+单位（% / 亿元 / 万人 …）密度（每千汉字，截断 50）。"""
+    cjk = max(1, cjk_count(text))
+    return min(len(NUM_UNIT_RE.findall(text)) / cjk * 1000, cap)
+
+
+def dunhao_density(text: str) -> float:
+    """顿号密度（每千汉字）：AI 公文式并列枚举偏高。"""
+    cjk = max(1, cjk_count(text))
+    return text.count("、") / cjk * 1000
+
+
+def formal_density(text: str) -> float:
+    """文言/正式虚词密度（每千汉字）：AI 学术/技术文本偏高。"""
+    cjk = max(1, cjk_count(text))
+    return sum(text.count(ch) for ch in FORMAL_PARTICLES) / cjk * 1000
+
+
+def digit_evidence(text: str) -> float:
+    """归一化数字证据 ∈ [0,1]：只在出现数字时给「人写」证据，缺席为 0。
+
+    与 digit_density 的区别是值域固定、无负向惩罚；风格路把它作为
+    单侧修正项（STYLE_STATS 中 mean=0/std=1），不参与 base8 的 z 归一化。
+    """
+    return digit_density(text) / 60.0
+
+
+def num_evidence(text: str) -> float:
+    """归一化「数字+单位」证据 ∈ [0,1]：统计公报/预算报告类文本的主要人写信号。"""
+    return num_unit_density(text) / 50.0
+
+
+def official_evidence(text: str, cap: float = 30.0) -> float:
+    """归一化官方专名证据 ∈ [0,1]：只在密集引用时给「人写」证据，缺席为 0。
+
+    人写公文常连续出现党代会、国家机关等专名；生成式模型的公文通常停留在
+    泛化政策表述。与 digit/num_evidence 同为单侧修正，不参与 base8 z 归一化。
+    """
+    cjk = max(1, cjk_count(text))
+    density = sum(text.count(word) for word in OFFICIAL_REFS) / cjk * 1000
+    return min(density, cap) / cap
+
+
 def mtld(tokens: list[str], threshold: float = 0.72) -> float:
     """标准 MTLD（Measure of Textual Lexical Diversity）。
 
@@ -172,6 +250,13 @@ def window_features(text: str, sentences: list[str]) -> dict[str, float]:
         "sentence_length_variance": sentence_length_variance(lengths),
         "char_mtld": char_mtld(text),
         "sent_initial_rate": sentence_initial_rate(sentences),
+        "digit_density": digit_density(text),
+        "num_unit_density": num_unit_density(text),
+        "dunhao_density": dunhao_density(text),
+        "formal_density": formal_density(text),
+        "digit_evidence": digit_evidence(text),
+        "num_evidence": num_evidence(text),
+        "official_evidence": official_evidence(text),
         "cjk_count": float(cjk_count(text)),
     }
 

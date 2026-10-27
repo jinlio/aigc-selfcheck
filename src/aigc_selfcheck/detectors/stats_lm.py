@@ -33,8 +33,9 @@ from ..preprocess import split_sentences
 from .base import Detector, DetectorResult, resolve_device
 
 MIN_CJK_FOR_PPL = 10  # 少于该汉字数的窗口 PPL 不可靠，退化为纯风格分
-# 单批 token 总量上限（logits 约 0.5 GB @bf16）；显存紧时可用环境变量调小
-_BATCH_TOKEN_BUDGET = int(os.environ.get("AIGC_BATCH_TOKEN_BUDGET", "1600"))
+# 单批 token 总量上限。8GB 笔记本 GPU 上 1600 会触发共享显存回退，速度反而
+# 慢一个数量级；默认降到 800，可用 AIGC_BATCH_TOKEN_BUDGET 覆盖。
+_BATCH_TOKEN_BUDGET = int(os.environ.get("AIGC_BATCH_TOKEN_BUDGET", "800"))
 
 
 def _sigmoid(x: float) -> float:
@@ -85,7 +86,7 @@ class StatsDetector(Detector):
         self,
         device: str = "auto",
         model_id: str | None = None,
-        max_batch: int = 8,
+        max_batch: int = 4,
         dtype: str | None = None,
     ):
         super().__init__(device)

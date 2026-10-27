@@ -20,6 +20,9 @@ from .constants import (
     BAND_ROBUST_LOW,
     BAND_TAIL_HIGH,
     BAND_TAIL_LOW,
+    BOOST_B,
+    BOOST_C,
+    BOOST_FLOOR,
     DISAGREE_DELTA,
     HEATMAP_HIGH,
     HEATMAP_LOW,
@@ -59,12 +62,19 @@ class FusedWindow:
 
 
 def fuse_scores(scores: dict[str, float]) -> tuple[float, float]:
-    """可用路的加权重归一化融合 + 两两最大差。单路时 δ=0。"""
+    """可用路的加权重归一化融合 + 两两最大差。单路时 δ=0。
+
+    v11 起：b 路非常确定（≥BOOST_B）且 c 路至少中等确定（≥BOOST_C）时，
+    融合分至少抬到 BOOST_FLOOR。规则只在 train 上选定，用于补回 b 路高置信
+    但被 c 拉低的文学/口语 AI 窗口；人写段高与跨语域探针不变。
+    """
     if not scores:
         return 0.0, 0.0
     active = {k: ALPHA[k] for k in scores if k in ALPHA}
     total_weight = sum(active.values())
     p_fuse = sum(scores[k] * active[k] for k in active) / total_weight
+    if scores.get("b", 0.0) >= BOOST_B and scores.get("c", 0.0) >= BOOST_C:
+        p_fuse = max(p_fuse, BOOST_FLOOR)
     values = list(scores.values())
     delta = max(values) - min(values) if len(values) >= 2 else 0.0
     return p_fuse, delta

@@ -43,11 +43,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from aigc_selfcheck.cache import ScoreCache  # noqa: E402
 from aigc_selfcheck.constants import (  # noqa: E402
     ALPHA,
+    BOOST_B,
+    BOOST_C,
+    BOOST_FLOOR,
     HEATMAP_HIGH,
     PPL_LOG_MEAN,
     PPL_LOG_STD,
     PPL_WEIGHT_IN_C,
     STYLE_BIAS,
+    STYLE_FIXED_SCALE,
     STYLE_STATS,
 )
 from aigc_selfcheck.contexts import window_contexts  # noqa: E402
@@ -158,12 +162,27 @@ def style_p(features: dict, stats: dict, bias: float) -> float:
     return sigmoid(total)
 
 
+def finite_log_ppl(meta: dict) -> float | None:
+    """缓存里的 log_ppl，None/NaN（PPL 退化窗口）统一返回 None。
+
+    NaN 会由缓存原样写回（json.dumps 允许 NaN 字面量），只判 None 会让它
+    传染 median/pstdev 与 p_ppl；生产 detect_batch 用 NaN 检查退回 0.5。
+    """
+    value = meta.get("log_ppl")
+    if value is None:
+        return None
+    value = float(value)
+    return value if math.isfinite(value) else None
+
+
 def lane_c(meta: dict, mu: float, sigma: float, stats: dict, bias: float = STYLE_BIAS) -> float | None:
-    log_ppl = meta.get("log_ppl")
-    if log_ppl is None:  # PPL 退化窗口（_json_safe 把 NaN 置 None）
+    log_ppl = finite_log_ppl(meta)
+    # PPL 退化窗口：短于 MIN_CJK_FOR_PPL 或预测位为 0 时 log_ppl 为 NaN。
+    # 生产 StatsDetector.detect_batch 用 NaN 检查退回 p_ppl=0.5，这里必须同口径。
+    if log_ppl is None:
         p_ppl = 0.5
     else:
-        p_ppl = sigmoid((mu - float(log_ppl)) / sigma)
+        p_ppl = sigmoid((mu - log_ppl) / sigma)
     features = meta.get("features") or {}
     if not features:
         return None
@@ -173,13 +192,16 @@ def lane_c(meta: dict, mu: float, sigma: float, stats: dict, bias: float = STYLE
 
 def fit_constants(human_units: list[dict]) -> tuple[float, float, dict]:
     """与 evaluate.py --fit 同一套拟合：μ=median(log_ppl)，σ=pstdev，风格 mean/std。"""
-    log_ppls = [float(u["meta_c"]["log_ppl"]) for u in human_units if u["meta_c"].get("log_ppl") is not None]
+    log_ppls = [v for u in human_units if (v := finite_log_ppl(u["meta_c"])) is not None]
     rows = [u["meta_c"].get("features") or {} for u in human_units]
     rows = [{k: float(v) for k, v in r.items() if v is not None and v == v} for r in rows if r]
     mu = statistics.median(log_ppls)
     sigma = statistics.pstdev(log_ppls) or 1.0
     stats = {}
     for name in STYLE_STATS:
+        if name in STYLE_FIXED_SCALE:  # 单侧证据：mean=0/std=1 固定，不重估
+            stats[name] = dict(STYLE_STATS[name])
+            continue
         values = [r[name] for r in rows if name in r]
         if len(values) < 2:
             stats[name] = dict(STYLE_STATS[name])
@@ -251,7 +273,7 @@ def load_train() -> list[dict]:
                     if not meta_c:
                         print(f"  [miss] c 路 meta（含历史指纹）缺失：{r['uid']}")
                         return []
-                    if meta_c.get("log_ppl") is None:
+                    if finite_log_ppl(meta_c) is None:
                         # 极短窗口（如「简单罗列几项：」）PPL 退化；与当前指纹命中时
                         # 的行为保持一致：lane_c 内部按 p_ppl=0.5 处理，不中断分析。
                         print(f"  [warn] c 路 log_ppl 退化，按 p_ppl=0.5 处理：{r['uid']}")
@@ -273,13 +295,17 @@ def fused(unit: dict, alpha: dict[str, float], c_override: float | None = None) 
     if c_override is not None:
         scores["c"] = c_override
     active = {k: alpha[k] for k in scores if alpha.get(k)}
-    return sum(scores[k] * alpha[k] for k in active) / sum(active.values())
+    p_fuse = sum(scores[k] * alpha[k] for k in active) / sum(active.values())
+    if scores.get("b", 0.0) >= BOOST_B and scores.get("c", 0.0) >= BOOST_C:
+        p_fuse = max(p_fuse, BOOST_FLOOR)
+    return p_fuse
 
 
 # ── --fit-style：风格路 LR 重拟合（v3.2 起的常量来源，全部 train-only）──
 
 # v3.2 选型的候选特征集（嵌套分组 CV 比较；见 calibration/README.md v3.2 节）。
-# 显式列表、不动态引用 STYLE_STATS——保证跨轮次可复现（当前采纳 pruned8）。
+# 显式列表、不动态引用 STYLE_STATS——保证跨轮次可复现（当前部署 pruned8 + 单侧证据；
+# v10_lean12 是全量重拟合候选，因古典散文探针回归被否决，保留供复现）。
 STYLE_FEATURE_VARIANTS: dict[str, list[str]] = {
     "pruned6": [
         "punct_density", "period_comma_ratio", "de_density", "char_mtld",
@@ -294,6 +320,23 @@ STYLE_FEATURE_VARIANTS: dict[str, list[str]] = {
         "connective_density", "de_density", "colloquial_density", "punct_diversity",
         "punct_density", "period_comma_ratio", "sentence_length_variance", "char_mtld",
         "sent_initial_rate", "sent_len_step", "enum_density",
+    ],
+    # v10c：base8 + 两个单侧数字证据（部署口径）。证据特征归一化固定 0/1，
+    # 不参与人写 mean/std 重估；其余 base8 仍按留出集重估，用于检验部署特征集
+    # 本身是否比全量重拟合更稳。
+    "v10c_base8_ev": [
+        "punct_density", "period_comma_ratio", "de_density", "char_mtld",
+        "punct_diversity", "colloquial_density", "connective_density", "sent_initial_rate",
+        "num_evidence", "digit_evidence",
+    ],
+    # v10：在 pruned8 上加入数字/正式文体特征（解决官方文体低 PPL 误伤）。
+    # 数字两特征在 features.py 内已截断（60‰ / 50‰），避免表格化公报获得过强证据。
+    # 注意：该变体走全量重拟合，会把风格截距从 -2.045 抬高，导致古典散文探针
+    # 误伤 0%→40%；v10c 已改用「base8 + 单侧证据」两段式，此处仅保留复现。
+    "v10_lean12": [
+        "punct_density", "period_comma_ratio", "de_density", "char_mtld",
+        "punct_diversity", "colloquial_density", "connective_density", "sent_initial_rate",
+        "digit_density", "num_unit_density", "dunhao_density", "formal_density",
     ],
 }
 
@@ -335,11 +378,14 @@ def fit_style_lr(
     """
     import numpy as np
 
-    mean = {f: statistics.fmean([u["meta_c"]["features"][f] for u in train_humans]) for f in names}
-    std = {
-        f: (statistics.pstdev([u["meta_c"]["features"][f] for u in train_humans]) or 1.0)
-        for f in names
-    }
+    mean = {}
+    std = {}
+    for f in names:
+        if f in STYLE_FIXED_SCALE:
+            mean[f], std[f] = 0.0, 1.0
+        else:
+            mean[f] = statistics.fmean([u["meta_c"]["features"][f] for u in train_humans])
+            std[f] = statistics.pstdev([u["meta_c"]["features"][f] for u in train_humans]) or 1.0
     x = [
         [(u["meta_c"]["features"][f] - mean[f]) / std[f] for f in names]
         for u in train_humans + train_ais
@@ -362,8 +408,8 @@ def _c_with_style(unit: dict, names, mean, std, weights, bias, mu: float, sigma:
     features = unit["meta_c"]["features"]
     total = bias + sum(wi * (features[f] - mean[f]) / std[f] for f, wi in zip(names, weights, strict=True))
     p_style = sigmoid(total)
-    log_ppl = unit["meta_c"].get("log_ppl")
-    p_ppl = 0.5 if log_ppl is None else sigmoid((mu - float(log_ppl)) / sigma)
+    log_ppl = finite_log_ppl(unit["meta_c"])
+    p_ppl = 0.5 if log_ppl is None else sigmoid((mu - log_ppl) / sigma)
     return PPL_WEIGHT_IN_C * p_ppl + (1 - PPL_WEIGHT_IN_C) * p_style
 
 
@@ -378,7 +424,7 @@ def cmd_fit_style(units: list[dict]) -> int:
     humans = [u for u in units if u["class"] == "human"]
     ais = [u for u in units if u["class"] == "ai"]
     _augment_features(units)
-    all_lps = [float(u["meta_c"]["log_ppl"]) for u in humans if u["meta_c"].get("log_ppl") is not None]
+    all_lps = [v for u in humans if (v := finite_log_ppl(u["meta_c"])) is not None]
     sigma_all = statistics.pstdev(all_lps) or 1.0
 
     print("== 风格路 LR 重拟合（train-only；写回 constants.py 的 STYLE_STATS / STYLE_BIAS）==\n")
@@ -392,7 +438,7 @@ def cmd_fit_style(units: list[dict]) -> int:
             for author in sorted({u["author"] for u in humans}):
                 fit_humans = [u for u in humans if u["author"] != author]
                 held = [u for u in humans if u["author"] == author]
-                fold_lps = [float(u["meta_c"]["log_ppl"]) for u in fit_humans if u["meta_c"].get("log_ppl")]
+                fold_lps = [v for u in fit_humans if (v := finite_log_ppl(u["meta_c"])) is not None]
                 fold_mu = _mu_rule(fold_lps, rule)
                 fold_sigma = statistics.pstdev(fold_lps) or 1.0
                 m, s, w, b = fit_style_lr(fit_humans, ais, names)
@@ -449,7 +495,7 @@ def main() -> int:
     ais = [u for u in units if u["class"] == "ai"]
     polished = [u for u in units if u["class"] == "polished"]
     mu_all, sigma_all, _ = fit_constants(humans)
-    mu75 = sorted(float(u["meta_c"]["log_ppl"]) for u in humans if u["meta_c"].get("log_ppl") is not None)
+    mu75 = sorted(v for u in humans if (v := finite_log_ppl(u["meta_c"])) is not None)
     mu75 = mu75[int(len(mu75) * 0.75)]  # 75 分位：把「顺」的门槛抬高
     print(f"train 单元：human {len(humans)} / ai {len(ais)} / polished {len(polished)}")
     print(f"全 train 拟合：μ(median)={mu_all:.2f} / μ(75分位)={mu75:.2f} σ={sigma_all:.2f}"
@@ -521,16 +567,18 @@ def main() -> int:
     )
 
     # ── 分析 3：train-only 决策变体（α 组合 × PPL 校准点）──
-    # 决策表固定使用部署的 STYLE_STATS（v3.2 权重 / v4 归一化），不刷新归一化；
+    # 决策表固定使用部署的 STYLE_STATS（v10c：base8 + 单侧证据），不刷新归一化；
     # 否则表内数字与 evaluate.py 实际部署分数不是同一口径。
+    # 「部署常量」行必须与 evaluate.py --split=train 完全一致（μ=4.20/σ=0.68）。
     print("\n== 决策变体（train 全量；部署 STYLE_STATS；a 路去留与 μ 选择只看这里）==")
     variants = [
+        ("部署常量（v10c）, α=0/0.2/0.8", ALPHA, PPL_LOG_MEAN, PPL_LOG_STD),
         ("α=0.2/0.4/0.4（v2 旧配）, μ=median", {"a": 0.2, "b": 0.4, "c": 0.4}, mu_all, sigma_all),
         ("α=0.2/0.4/0.4（v2 旧配）, μ=75分位", {"a": 0.2, "b": 0.4, "c": 0.4}, mu75, sigma_all),
         ("α=0/0.5/0.5（v7 旧配）, μ=median", {"a": 0.0, "b": 0.5, "c": 0.5}, mu_all, sigma_all),
         ("α=0/0.5/0.5（v7 旧配）, μ=75分位", {"a": 0.0, "b": 0.5, "c": 0.5}, mu75, sigma_all),
-        ("α=0/0.4/0.6（v8 采纳）, μ=median", ALPHA, mu_all, sigma_all),
-        ("α=0/0.4/0.6（v8 采纳）, μ=75分位", ALPHA, mu75, sigma_all),
+        ("α=0/0.2/0.8（v10 候选）, μ=median", ALPHA, mu_all, sigma_all),
+        ("α=0/0.2/0.8（v10 候选）, μ=75分位", ALPHA, mu75, sigma_all),
     ]
     print(f"{'变体':38s} {'trainAUC':>8s} {'误伤':>6s} {'召回':>6s}")
     for name, alpha, mu, sigma in variants:
@@ -562,23 +610,26 @@ def main() -> int:
             pass
     print(f"  Youden 最优阈值 ≈ {best[0]:.3f}（J={best[1]:.3f}），产品现用 HOT={HOT}")
 
-    # ── 分析 5：(b,c) 权重 × μ 网格——train 上「误伤 ≤8% 最大化召回」选型 ──
-    print(f"\n== 选型网格（a=0；train 全量；部署 STYLE_STATS；阈值 HOT={HOT}）==")
+    # ── 分析 5：(b,c) 权重网格——train 上「误伤 ≤8% 最大化召回」敏感性扫描 ──
+    # 固定部署 μ/σ（v10c 4.20/0.68）；α 的最终选择仍以段落级双优为准，
+    # 这里的「最大化召回」只作参考，不能单独作为决策依据。
+    print(f"\n== 选型网格（a=0；train 全量；部署 STYLE_STATS/μ/σ；阈值 HOT={HOT}）==")
     print(f"{'b:c':>9s} {'μ':>6s} {'AUC':>6s} {'误伤':>6s} {'召回':>6s}")
     grid = []
-    for w_b in (0.4, 0.5, 0.6, 0.7):
+    for w_b in (0.2, 0.3, 0.4, 0.5, 0.6, 0.7):
         alpha_try = {"a": 0.0, "b": w_b, "c": round(1 - w_b, 1)}
-        for mu_name, mu_try in (("median", mu_all), ("75分位", mu75)):
-            neg = [fused(u, alpha_try, lane_c(u["meta_c"], mu_try, sigma_all, STYLE_STATS)) for u in humans]
-            pos = [fused(u, alpha_try, lane_c(u["meta_c"], mu_try, sigma_all, STYLE_STATS)) for u in ais]
+        for mu_name, mu_try in (("部署", PPL_LOG_MEAN), ("median", mu_all), ("75分位", mu75)):
+            neg = [fused(u, alpha_try, lane_c(u["meta_c"], mu_try, PPL_LOG_STD, STYLE_STATS)) for u in humans]
+            pos = [fused(u, alpha_try, lane_c(u["meta_c"], mu_try, PPL_LOG_STD, STYLE_STATS)) for u in ais]
             fpr = sum(1 for v in neg if v > HOT) / len(neg)
             rec = sum(1 for v in pos if v > HOT) / len(pos)
             grid.append((fpr, rec, auc(pos, neg), alpha_try, mu_name))
             print(f"{w_b:.1f}:{1-w_b:.1f} {mu_name:>6s} {auc(pos, neg):6.3f} {fpr:6.1%} {rec:6.1%}")
     feasible = [g for g in grid if g[0] <= 0.08]
     if feasible:
-        fpr, rec, a_score, alpha_best, mu_best = max(feasible, key=lambda g: (g[1], g[2]))
-        print(f"\n  选型（train-only）：α={alpha_best} μ={mu_best} → AUC {a_score:.3f} 误伤 {fpr:.1%} 召回 {rec:.1%}")
+        # v10 起以 AUC 为主序（段落级双优另见 analyze 的 α 网格）；召回只作次序。
+        fpr, rec, a_score, alpha_best, mu_best = max(feasible, key=lambda g: (g[2], g[1]))
+        print(f"\n  参考选型（train-only，误伤≤8% 下最大 AUC）：α={alpha_best} μ={mu_best} → AUC {a_score:.3f} 误伤 {fpr:.1%} 召回 {rec:.1%}")
     return 0
 
 

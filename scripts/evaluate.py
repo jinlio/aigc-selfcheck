@@ -31,9 +31,10 @@ os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from aigc_selfcheck.cache import ScoreCache  # noqa: E402
-from aigc_selfcheck.constants import ALPHA, HEATMAP_HIGH  # noqa: E402
+from aigc_selfcheck.constants import HEATMAP_HIGH  # noqa: E402
 from aigc_selfcheck.contexts import window_contexts  # noqa: E402
 from aigc_selfcheck.detectors import build_detectors  # noqa: E402
+from aigc_selfcheck.fuse import fuse_scores  # noqa: E402
 
 CALIBRATION = Path("calibration/out/calibration.jsonl")
 FINGERPRINT = Path("calibration/out/splits.md5")
@@ -144,9 +145,7 @@ def main() -> int:
         scored = []
         for i, unit in enumerate(items):
             scores = scores_by_unit[i]
-            active = {k: ALPHA[k] for k in scores if k in ALPHA and ALPHA[k]}
-            total_weight = sum(active.values())
-            fused_score = sum(scores[k] * active[k] for k in active) / total_weight if total_weight else 0.0
+            fused_score, _delta = fuse_scores(scores)
             scored.append({**unit, "scores": scores, "fused": fused_score, "meta_c": metas_by_unit[i].get("c", {})})
         return scored
 

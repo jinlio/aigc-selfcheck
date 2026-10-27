@@ -37,8 +37,8 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "calibration" / "ai"
 
-# 端点域名白名单：阿里云百炼官方端点及其聚合网关（ trusted 后缀匹配）
-ALLOWED_HOST_SUFFIXES = ("dashscope.aliyuncs.com", ".qianwenaiapi.com")
+# 端点域名白名单：阿里云百炼官方端点、其聚合网关与 MiniMax 官方端点（trusted 后缀匹配）
+ALLOWED_HOST_SUFFIXES = ("dashscope.aliyuncs.com", ".qianwenaiapi.com", ".minimaxi.com")
 
 # 与 calibration/AI_PROMPTS.md 保持一致的 5 条标准提示词（主题与人类语料刻意重叠）
 PROMPTS: list[tuple[str, str]] = [
@@ -154,8 +154,9 @@ def generate(
             print(f"  [重试{attempt}] 提示词{idx} 汉字数 {_cjk(content)} 越界")
         if body is None:
             raise SystemExit(f"提示词 {idx} 两次生成都越界，中止（已生成 {len(created)} 段）")
+        platform = "MiniMax(API)" if "minimaxi.com" in base else "阿里云百炼(API)"
         header = (
-            f"<!-- 平台: 阿里云百炼(API) | 模型: {model} | 日期: {date} | 文体: {style} | "
+            f"<!-- 平台: {platform} | 模型: {model} | 日期: {date} | 文体: {style} | "
             f"提示词: {idx} | 搜索: 关闭（API 无联网搜索） | 思考: 关闭 | 参数: 服务端默认 -->"
         )
         out = OUT_DIR / f"{prefix}{start_no + len(created):02d}-{TOPIC_SUFFIX[style]}.txt"
