@@ -1,4 +1,11 @@
-from aigc_selfcheck.fuse import FusedWindow, composite_score, doc_level, fuse_scores
+from aigc_selfcheck.fuse import (
+    FusedWindow,
+    apply_mtld_arbitration,
+    composite_score,
+    doc_level,
+    fuse_scores,
+    mtld_arbitration,
+)
 
 
 def test_fuse_scores_boosts_b_high_confidence() -> None:
@@ -8,6 +15,50 @@ def test_fuse_scores_boosts_b_high_confidence() -> None:
     assert fuse_scores({"a": 0.2, "b": 0.99, "c": 0.40})[0] < 0.80
     # b 不够确定时不抬分。
     assert fuse_scores({"a": 0.2, "b": 0.97, "c": 0.55})[0] < 0.80
+
+
+def test_mtld_arbitration_boosts_b_high_c_low() -> None:
+    scores = {"a": 0.0, "b": 0.93, "c": 0.52}
+    # 落在 [70, 110] 的现代文本 mtld：抬到 floor。
+    assert mtld_arbitration(0.62, scores, {"char_mtld": 85.0}) == 0.80
+    # 文言/古白话的 mtld 远超上界：不抬分（这是防探针误伤的关键）。
+    assert mtld_arbitration(0.62, scores, {"char_mtld": 161.8}) == 0.62
+    # 低于下界（重复度高的文本）：不抬分。
+    assert mtld_arbitration(0.62, scores, {"char_mtld": 55.0}) == 0.62
+    # c 已够高或 b 不够高：交给 v11 的增强规则，本函数不动。
+    assert mtld_arbitration(0.62, {"a": 0.0, "b": 0.93, "c": 0.70}, {"char_mtld": 85.0}) == 0.62
+    assert mtld_arbitration(0.62, {"a": 0.0, "b": 0.80, "c": 0.52}, {"char_mtld": 85.0}) == 0.62
+    # 只抬不压：已经高于 floor 时保持原值。
+    assert mtld_arbitration(0.90, scores, {"char_mtld": 85.0}) == 0.90
+    # 缺特征或特征退化：行为与 v11 一致。
+    assert mtld_arbitration(0.62, scores, None) == 0.62
+    assert mtld_arbitration(0.62, scores, {}) == 0.62
+
+
+def test_apply_mtld_arbitration_updates_windows_in_place() -> None:
+    window = FusedWindow(
+        window_key="0:0",
+        block_index=0,
+        sentence_ids=[0],
+        text="x",
+        scores={"a": 0.0, "b": 0.93, "c": 0.52},
+        p_fuse=0.62,
+        delta=0.0,
+        metas={"c": {"features": {"char_mtld": 85.0}}},
+    )
+    untouched = FusedWindow(
+        window_key="0:1",
+        block_index=0,
+        sentence_ids=[1],
+        text="y",
+        scores={"a": 0.0, "b": 0.93, "c": 0.52},
+        p_fuse=0.62,
+        delta=0.0,
+        metas={"c": {"features": {"char_mtld": 200.0}}},
+    )
+    assert apply_mtld_arbitration([window, untouched]) == 1
+    assert window.p_fuse == 0.80
+    assert untouched.p_fuse == 0.62
 
 
 def _window(p_fuse: float) -> FusedWindow:

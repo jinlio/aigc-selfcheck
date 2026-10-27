@@ -34,7 +34,7 @@ from aigc_selfcheck.cache import ScoreCache  # noqa: E402
 from aigc_selfcheck.constants import HEATMAP_HIGH  # noqa: E402
 from aigc_selfcheck.contexts import window_contexts  # noqa: E402
 from aigc_selfcheck.detectors import build_detectors  # noqa: E402
-from aigc_selfcheck.fuse import fuse_scores  # noqa: E402
+from aigc_selfcheck.fuse import fuse_scores, mtld_arbitration  # noqa: E402
 
 CALIBRATION = Path("calibration/out/calibration.jsonl")
 FINGERPRINT = Path("calibration/out/splits.md5")
@@ -146,7 +146,10 @@ def main() -> int:
         for i, unit in enumerate(items):
             scores = scores_by_unit[i]
             fused_score, _delta = fuse_scores(scores)
-            scored.append({**unit, "scores": scores, "fused": fused_score, "meta_c": metas_by_unit[i].get("c", {})})
+            meta_c = metas_by_unit[i].get("c", {})
+            # v12：与产品 pipeline 同规则——b 高 / c 低时用 char_mtld 裁决
+            fused_score = mtld_arbitration(fused_score, scores, meta_c.get("features"))
+            scored.append({**unit, "scores": scores, "fused": fused_score, "meta_c": meta_c})
         return scored
 
     train_scored = score_all(train)

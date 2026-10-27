@@ -36,7 +36,12 @@ from aigc_selfcheck.constants import HEATMAP_HIGH  # noqa: E402
 from aigc_selfcheck.contexts import preceding_context  # noqa: E402
 from aigc_selfcheck.detectors import build_detectors  # noqa: E402
 from aigc_selfcheck.docio import Block  # noqa: E402
-from aigc_selfcheck.fuse import FusedWindow, doc_level, fuse_scores  # noqa: E402
+from aigc_selfcheck.fuse import (  # noqa: E402
+    FusedWindow,
+    apply_mtld_arbitration,
+    doc_level,
+    fuse_scores,
+)
 from aigc_selfcheck.preprocess import prepare_block  # noqa: E402
 
 DATA = ROOT / "calibration" / "ai_ark_lite"
@@ -138,6 +143,9 @@ def aggregate(rows: list[dict], jobs, scores, metas) -> list[dict]:
                 metas=metas[i],
             )
         )
+    for windows in by_para.values():
+        apply_mtld_arbitration(windows)
+
     docs = []
     for index, row in enumerate(rows):
         windows = by_para[index]

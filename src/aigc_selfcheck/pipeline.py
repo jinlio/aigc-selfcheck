@@ -23,6 +23,7 @@ from .explain import (
 )
 from .fuse import (
     FusedWindow,
+    apply_mtld_arbitration,
     burstiness_from_windows,
     doc_level,
     fuse_scores,
@@ -232,6 +233,10 @@ def analyze_document(
                 metas=metas_by_job[i],
             )
         )
+
+    # ── v12：b 高 / c 低的分歧区用 char_mtld 裁决（只抬分）────────────
+    # 必须在生成理由之前施加，理由里的 risk 才与实际展示分一致。
+    apply_mtld_arbitration(fused)
 
     # ── 白话解释与修改建议（窗口与句级共用，避免重复计算）────────────
     for window in fused:
