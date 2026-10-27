@@ -1,4 +1,13 @@
-from aigc_selfcheck.fuse import FusedWindow, composite_score, doc_level
+from aigc_selfcheck.fuse import FusedWindow, composite_score, doc_level, fuse_scores
+
+
+def test_fuse_scores_boosts_b_high_confidence() -> None:
+    # b 路高置信 + c 路中等确定：融合分抬到 floor，避免被 c 拉低。
+    assert fuse_scores({"a": 0.2, "b": 0.99, "c": 0.50})[0] == 0.80
+    # c 不够确定时不抬分。
+    assert fuse_scores({"a": 0.2, "b": 0.99, "c": 0.40})[0] < 0.80
+    # b 不够确定时不抬分。
+    assert fuse_scores({"a": 0.2, "b": 0.97, "c": 0.55})[0] < 0.80
 
 
 def _window(p_fuse: float) -> FusedWindow:

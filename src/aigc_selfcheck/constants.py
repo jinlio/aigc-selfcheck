@@ -41,6 +41,16 @@ p_ppl = σ((μ − log PPL) / σ)。本实现按直觉方向，公式以这里�
 ALPHA = {"a": 0.0, "b": 0.2, "c": 0.8}
 DISAGREE_DELTA = 0.5  # 三路两两最大差 > 0.5 → 「⚠ 三路分歧」，不做硬判定
 
+# v11 决策（2026-10-27，v11 train 416 人写窗 / 1228 AI 窗，全部 train-only）：
+#   b 路在部分文学/口语 AI 上仍高置信，但融合被 c 拉低。网格（b≥0.95~0.98、
+#   c≥0.40~0.60、floor 0.78~0.82）显示 b≥0.98 且 c≥0.45 时，人写窗误伤
+#   0.48%→0.72%（+1 窗）、人写段高 11.49% 不变、AI 窗召回 60.75%→68.16%
+#   （+7.4pp）、AI 段高 89.51% 不变、学术 AI 窗 88.03%→93.16%、跨语域探针
+#   0%、学术人写 1.75% 不变。floor 取 0.80（0.78~0.82 结果一致）。
+BOOST_B = 0.98
+BOOST_C = 0.45
+BOOST_FLOOR = 0.80
+
 # ── C 路内部合成（文档未定处，这里定为 PPL 为主、风格为辅）──
 PPL_WEIGHT_IN_C = 0.6
 
@@ -59,11 +69,15 @@ PPL_WEIGHT_IN_C = 0.6
 # 旧 4.67/0.81 是「无上下文」口径，与新口径不可比；v7 test 保留为历史。
 # v9（2026-10-27）：v9 train（292 人写窗，新增 12 位统计公报作者）重导
 # median=3.84、μ75=4.20、σ=0.68；Δμ=-0.04 在拟合精度内，沿用 μ75 规则取值。
+# v10（2026-10-27）：v10 train 重导 median=3.79、μ75=4.21、σ=0.88。σ 上升是
+# 公文低 PPL 尾巴所致。但全量重拟合常量在跨语域探针上把古典散文误伤从 0%
+# 推到 40%（重拟合抬高了风格截距），故 v10c **回退 μ/σ 到 4.20/0.68**：
+# 两段式方案已用数字证据单独压住公文误伤，不再需要用 σ 吸收公文尾巴。
 PPL_LOG_MEAN = 4.20  # μ_calib（75 分位拟合，Qwen3.5-2B-Base，v9 train/带上下文）
 PPL_LOG_STD = 0.68  # σ_calib（Qwen3.5-2B-Base，v9 train/带上下文）
 PPL_CONTEXT_TOKENS = 128  # 条件上下文长度（带上文算 PPL 更稳）
 
-# 每个参考基座独立的 PPL 校准常量（μ75/σ，均在 v9 train + 带上下文口径下导出）。
+# 每个参考基座独立的 PPL 校准常量（μ75/σ，2B 在 v9 train、0.5B 在 v8 train 导出）。
 # 换模型必须在此登记，否则会误用 2B 的 μ/σ；cache_id 已并入所用常量。
 # 0.5B 仅作 CPU 回退：train c AUC 0.930 / 融合 0.944 / 召回 66.3% / 人写误伤 0.0%，
 # LOGO-生成器融合 AUC mean 0.957 / min 0.869（豆包），低于 2B 的 0.972 / 0.898。
@@ -72,7 +86,7 @@ PPL_CALIBRATION: dict[str, tuple[float, float]] = {
     "Qwen/Qwen2.5-0.5B": (4.13, 0.64),
 }
 
-# ── 风格特征 z 归一化 + 线性合成（v3.2 定权重，v4 刷归一化）──
+# ── 风格特征 z 归一化 + 线性合成（v3.2 定权重，v9 刷归一化）──
 # direction: +1 表示取值越大越像 AI；-1 表示越小越像 AI。
 # 拟合方式：scripts/cv_evaluate.py --fit-style——人写 train 窗口拟合 z 的 mean/std，
 # 再在（人写 + AI）train 窗口上拟合 L2 逻辑回归，coef → weight=|coef| / direction=sign，
@@ -101,6 +115,19 @@ PPL_CALIBRATION: dict[str, tuple[float, float]] = {
 # v9 决策（2026-10-27）：权重/截距继续锁定 v3.2（全量重拟合在 v9 上未重跑
 # LOGO-生成器嵌套 CV，无证据支持解锁）；归一化 mean/std 刷到 v9 train
 # （292 人写窗，新增 12 位统计公报作者），段高误伤 8→5 段、无新增误伤作者。
+# v10 决策（2026-10-27，v10 train 351 人写窗/335 AI 段，全部 train-only）：
+#   公文误伤的根因是 PPL——公文人写 p_ppl 中位 0.97，高于 AI 整体的 0.87。
+#   先试过「12 特征全量重拟合」（lean12）：train 段高 AI 97.0% / 人写 10.2%、
+#   公文 2/12，但重拟合把 STYLE_BIAS 从 -2.045 抬到 -0.984，跨语域人写探针
+#   的古典散文误伤从 0% 升到 40%（c 中位 0.57→0.83）——**否决**。
+#   v10c 改为两段式：base8 权重/截距保持 v9 不变，另加两个**单侧证据**特征
+#   （num_evidence = min(数字+单位密度,50)/50、digit_evidence = min(数字密度,60)/60，
+#   mean=0/std=1，方向人写）。证据缺席（古典散文/文学/无数字文本）时贡献为 0，
+#   不改变 base8 的任何行为；证据出现时只向人写方向减分。
+#   λ 网格（train-only）：λ_num=1.5 / λ_digit=0.5 时公文段高 6/12→2/12、
+#   人写段高 8.6%→5.5%、窗口误伤 1.1%→0.6%、召回 62.2%→61.6%、AUC 0.955→0.959；
+#   古典散文探针保持 0% 误伤。dunhao_density / formal_density 仍计算供报告与
+#   实验使用，但不进入评分（formal 在古典散文上 +0.55，单独就会造成回归）。
 STYLE_STATS: dict[str, dict[str, float]] = {
     "period_comma_ratio": {"mean": 0.82, "std": 1.51, "weight": 1.372, "direction": -1},
     "punct_density": {"mean": 101.80, "std": 33.52, "weight": 1.174, "direction": -1},
@@ -110,8 +137,18 @@ STYLE_STATS: dict[str, dict[str, float]] = {
     "punct_diversity": {"mean": 0.46, "std": 0.75, "weight": 0.604, "direction": 1},
     "connective_density": {"mean": 0.17, "std": 1.55, "weight": 0.530, "direction": 1},
     "sent_initial_rate": {"mean": 0.02, "std": 0.10, "weight": 0.324, "direction": 1},
+    # 单侧人写证据（v10c）：mean=0/std=1，缺席为 0；只减分、不加分。
+    "num_evidence": {"mean": 0.0, "std": 1.0, "weight": 1.5, "direction": -1},
+    "digit_evidence": {"mean": 0.0, "std": 1.0, "weight": 0.5, "direction": -1},
+    # v11：官方专名证据（党代会/国家机关等）。人写公文密集引用，AI 公文
+    # 通常停留在泛化政策语言；只减分、缺席为 0，λ 在 v11 train 上选定 3.0。
+    "official_evidence": {"mean": 0.0, "std": 1.0, "weight": 3.0, "direction": -1},
 }
-STYLE_BIAS = -2.045  # LR 截距（v3.2 train-only 拟合，v4 锁定未重拟合，PROVISIONAL）
+STYLE_BIAS = -2.045  # LR 截距（v3.2 train-only 拟合，v10c 保持 v9 值）
+
+# 单侧证据特征的归一化固定为 mean=0/std=1，不随 train 重估；离线分析
+# （cv_evaluate.fit_constants）必须跳过它们，否则会把「缺席为 0」破坏成负 z。
+STYLE_FIXED_SCALE = frozenset({"num_evidence", "digit_evidence", "official_evidence"})
 
 # ── 聚合与着色阈值（ALGORITHM §3.2/§3.3/§3.4）──
 # v3.1 重定心（+0.10，train ROC 依据）：a 路归零 + μ 上移 75 分位后，融合分

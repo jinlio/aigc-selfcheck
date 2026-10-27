@@ -391,17 +391,17 @@ def collect(
             continue
         if per_post.get((seed["author"], seed["url"]), 0) >= PER_POST_CAP:
             continue  # 该篇跨次运行已取满，不再碰（否则每次运行都会从同一篇续取）
-            paragraphs = seed.get("paragraphs")  # 种子可自带全文段落（如 RSS 全文），有则不再抓文章页
-            if paragraphs is None:
-                try:
-                    raw = safe_fetch(seed["url"])
-                except Exception as exc:  # noqa: BLE001
-                    print(f"  [skip] {seed['url']}: {exc}")
-                    continue
-                if seed["source"] == "gutenberg.org":
-                    paragraphs = gutenberg_paragraphs(raw)
-                else:
-                    paragraphs = extract_paragraphs(raw)
+        paragraphs = seed.get("paragraphs")  # 种子可自带全文段落（如 RSS 全文），有则不再抓文章页
+        if paragraphs is None:
+            try:
+                raw = safe_fetch(seed["url"])
+            except Exception as exc:  # noqa: BLE001
+                print(f"  [skip] {seed['url']}: {exc}")
+                continue
+            if seed["source"] == "gutenberg.org":
+                paragraphs = gutenberg_paragraphs(raw)
+            else:
+                paragraphs = extract_paragraphs(raw)
         for para in paragraphs:
             cjk = cjk_count(para)
             if not (MIN_CJK <= cjk <= MAX_CJK) or len(split_sentences(para)) < MIN_SENTS:
