@@ -6,8 +6,8 @@
 ## 数据分发边界
 
 - **随库分发**：代码、测试、文档、`calibration/ai/` 的 AI 自产样本、`manifest.jsonl` / `seeds.json` 等可审计元数据、探针 README 与不含正文的汇总。
-- **不随库分发**：第三方人写正文与审读记录（`calibration/raw/`）、润色派生样本（`calibration/polished/`）、冻结切分/评分缓存/训练日志（`calibration/out/`）、探针正文与下载缓存（`calibration/probe/`、`calibration/academic/`）、额外 AI 学术语料（`calibration/ai_ark_lite/`、`calibration/ai_academic_lite/texts/`）。
-- **历史隔离**：本本仓库由当前工作树生成单一根提交，不继承旧归档仓库历史；旧归档仓库 `jinlio/aigc-selfcheck` 仍保持私有。若以后从旧仓库重新发布，仍需用 `git filter-repo`/BFG 清洗历史。
+- **不随库分发**（保存在仓库外的本地数据归档）：第三方人写正文与审读记录（`calibration/raw/`）、润色派生样本（`calibration/polished/`）、冻结切分/评分缓存/训练日志（`calibration/out/`）、探针正文与下载缓存（`calibration/probe/`、`calibration/academic/`）、额外 AI 学术语料（`calibration/ai_ark_lite/`、`calibration/ai_academic_lite/texts/`）。
+- **历史**：本仓库由当前工作树生成单一根提交，历史中不含第三方人写正文、评分缓存与训练日志；提交前用 `git ls-files` 复核，见 TRAINING.md「提交前自检」。
 
 ## 本次新增
 
