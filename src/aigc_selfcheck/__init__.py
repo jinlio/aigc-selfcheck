@@ -8,4 +8,4 @@ import os
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"

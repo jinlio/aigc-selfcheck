@@ -118,8 +118,19 @@ class TestClassifyBlock:
         assert classify_block(_block("R_sens = sum(match_count_i) / (N_records * N_fields)")).kind == "formula"
 
     def test_prose_with_equals_is_not_formula(self):
-        assert classify_block(_block("The result is x = y.")).kind == "paragraph"
+        # 英文段现在归 non_zh（中文检测器不适用），但绝不能判成 formula
+        assert classify_block(_block("The result is x = y.")).kind != "formula"
         assert classify_block(_block("实验结果表明，准确率 = 0.92，召回率 = 0.88。")).kind == "paragraph"
+
+    def test_english_paragraph_non_zh(self):
+        block = _block("As the real estate industry enters a period of deep adjustment, decisions become harder.")
+        assert classify_block(block).kind == "non_zh"
+        assert not detectable(classify_block(block))
+
+    def test_short_chinese_with_digits_is_not_non_zh(self):
+        # 含大量数字的短中文段不能被误判成非中文
+        block = _block("项目总投资约 293000 万元，其中自有资金 93479 万元。")
+        assert classify_block(block).kind == "paragraph"
 
     def test_caption(self):
         assert classify_block(_block("图 1 系统总体架构示意")).kind == "caption"

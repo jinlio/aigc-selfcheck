@@ -39,6 +39,79 @@ def test_title_and_author_styles_are_skipped(tmp_path: Path) -> None:
     assert blocks[2].kind == "paragraph"
 
 
+def _docx_with_paragraphs(tmp_path: Path, items: list[tuple[str, str]]) -> Path:
+    doc = Document()
+    existing = {style.name for style in doc.styles}
+    for text, style in items:
+        if style not in existing:
+            doc.styles.add_style(style, WD_STYLE_TYPE.PARAGRAPH)
+            existing.add(style)
+        doc.add_paragraph(text, style=style)
+    path = tmp_path / "handbuilt.docx"
+    doc.save(path)
+    return path
+
+
+def test_manual_normal_headings_are_skipped(tmp_path: Path) -> None:
+    """真实论文常用 Normal 样式手打标题（目录 toc 样式、标题靠编号/字号）。"""
+    path = _docx_with_paragraphs(
+        tmp_path,
+        [
+            ("目  录", "Normal"),
+            ("1 总论\t10", "toc 1"),
+            ("1.1 项目概况\t10", "toc 2"),
+            ("1 总论", "Normal"),
+            ("1.1 项目概况", "Normal"),
+            ("项目名称为武汉市汉阳区四新“云璟”住宅小区建设项目，拟建于武汉市汉阳区四新片区。", "Normal"),
+        ],
+    )
+    blocks = read_docx(path)
+
+    assert [b.kind for b in blocks] == ["heading", "toc", "toc", "heading", "heading", "paragraph"]
+
+
+def test_cover_fields_are_metadata(tmp_path: Path) -> None:
+    path = _docx_with_paragraphs(
+        tmp_path,
+        [
+            ("题    目\u3000某小区建设项目可行性研究", "Normal"),
+            ("学    院\u3000经济与管理学院", "Normal"),
+            ("【关键词】\u3000房地产项目\u3000可行性研究", "Normal"),
+            ("摘  要", "Normal"),
+            ("这是摘要正文段落，长度足够说明它应当被当作正文处理。", "Normal"),
+        ],
+    )
+    blocks = read_docx(path)
+
+    assert [b.kind for b in blocks] == ["metadata", "metadata", "metadata", "heading", "paragraph"]
+
+
+def test_english_paragraph_is_not_chinese_detectable(tmp_path: Path) -> None:
+    """英文摘要不适用中文检测器，应被 classify_block 标为 non_zh。"""
+    from aigc_selfcheck.preprocess import classify_block, detectable
+
+    path = _docx_with_paragraphs(
+        tmp_path,
+        [("As the real estate industry enters a period of deep adjustment, investment decisions become harder.", "Normal")],
+    )
+    block = classify_block(read_docx(path)[0])
+
+    assert block.kind == "non_zh"
+    assert not detectable(block)
+
+
+def test_body_short_paragraph_without_number_is_detectable(tmp_path: Path) -> None:
+    """无编号、无句读的正文短句不能被误判成标题。"""
+    path = _docx_with_paragraphs(
+        tmp_path,
+        [("项目总投资约二十九亿元", "Normal"), ("项目建成后将显著改善区域居住条件并带动就业增长。", "Normal")],
+    )
+    blocks = read_docx(path)
+
+    assert blocks[0].kind == "paragraph"
+    assert blocks[1].kind == "paragraph"
+
+
 def test_pdf_heading_and_paragraph(tmp_path: Path) -> None:
     path = tmp_path / "sample.pdf"
     _make_pdf(

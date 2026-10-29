@@ -16,7 +16,6 @@ from dataclasses import dataclass
 
 from .docio import Block
 from .features import symbol_density
-
 SENT_DELIMITERS = "。！？；"
 CLOSERS = "”』」！）】"
 MIN_SENT_CHARS = 30
@@ -29,6 +28,14 @@ _RE_CAPTION = re.compile(r"^(图|表|附图|附表|Fig\.?|Table)\s*\d+")
 _RE_LONG_QUOTE = re.compile(r"“([^”]{50,})”")
 _RE_LATEX_TRACE = re.compile(r"\\(frac|begin|sum|int|left|right|alpha|beta|gamma|delta|mu|sigma)")
 _RE_ASSIGNMENT = re.compile(r"^[A-Za-z][A-Za-z0-9_]*\s*=\s*\S")
+
+
+def _cjk_ratio(text: str) -> float:
+    """可见字符里汉字占比；用于把英文摘要/纯符号段挡在中文检测器之外。"""
+    visible = [ch for ch in text if not ch.isspace()]
+    if not visible:
+        return 0.0
+    return sum("\u4e00" <= ch <= "\u9fff" for ch in visible) / len(visible)
 
 
 def _looks_like_formula(text: str) -> bool:
@@ -67,7 +74,6 @@ def classify_block(block: Block) -> Block:
         return block
     text = block.text
     kind = block.kind
-
     if (
         _RE_REF_START.match(text)
         or _RE_GBT_MARKER.search(text)
@@ -85,6 +91,10 @@ def classify_block(block: Block) -> Block:
         kind = "formula"
     elif _RE_CAPTION.match(text) and len(text) < 80:
         kind = "caption"
+    elif len(text) >= 20 and _cjk_ratio(text) < 0.20:
+        # 中文检测器（含中文 PPL 基座）对英文/纯符号段落没有有效信号，
+        # 打分只是噪声；英文摘要、英文标题一律跳过。
+        kind = "non_zh"
     else:
         covered = sum(m.end() - m.start() for m in _RE_LONG_QUOTE.finditer(text))
         if covered > len(text) * 0.5:
