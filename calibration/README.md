@@ -7,12 +7,12 @@
 采集与评测。历史各轮的逐轮结论、逐作者/逐生成器细目与日志同样在本地数据归档，
 这里只保留当前版本的口径与数字。
 
-## 构成（文件层 v11，2026-10-27）
+## 构成（文件层 v15，2026-10-27）
 
 | 层 | 数量 | 来源（概述） | 分发 |
 |---|---|---|---|
-| 人写 | 185 段 / 61 位作者 | 2021-12 之前发布的中文博客/专栏（资讯评述、技术博客、数学科普、学术论述/学术随笔），以及 2014–2021 年官方统计公报/政府工作报告/审计报告/预算报告/白皮书（62 段，31 个机构/年份组）。作者均有多年连续手写记录与可查发布日期；每作者 ≤5 段、单篇 ≤2 段。部分作者的 2021 年前旧文经 Common Crawl 2021 年存档取回，作为「早于 LLM 时代」的第三方存在证明 | 正文与逐段 provenance 不随库分发 |
-| AI 生成 | 650 段 / 27 个生成器标签 | GLM 系（v2 会话生成）；DeepSeek / Kimi / 豆包 / 通义千问 / ChatGPT / Gemini / Claude / MiMo / GPT-6.1-sol / deepseek-v4.1-flash 网页版；阿里云百炼 API 8 模型；v9/v10 方舟 API（MiniMax-M2.5、doubao-seed-2-1-lite/pro、glm-5.3、kimi-k3.1-pro）与 MiniMax 拟人化提示词包；v11 新增 glm-5.3 学术 30 段、MiniMax-M2.5 文学 30 段与 3 个 fresh test 模型（glm-5-3-flash、deepseek-v4-1-flash-economy、doubao-seed-2-0-mini，各 45 段）。提示词见 [AI_PROMPTS.md](AI_PROMPTS.md) | `ai/` 全量入库 |
+| 人写 | 625 段 / 227 位作者组 | 2021-12 之前发布的中文博客/专栏（资讯评述、技术博客、数学科普、学术论述/学术随笔，185 段/61 位）与 2014–2021 年官方统计公报/政府工作报告/审计报告/预算报告/白皮书（62 段，31 个机构/年份组）；v14 起加入《电子学报》2015–2021 同行评审论文（175 段/61 位第一作者），v15 再加《电子学报》第二批 101 段/37 位与《软件学报》140 段/66 位**全新第一作者**。作者均有多年连续手写记录与可查发布日期；每作者 ≤5 段、单篇 ≤2 段。部分作者的 2021 年前旧文经 Common Crawl 2021 年存档取回，作为「早于 LLM 时代」的第三方存在证明。HansPub OA 147 段经 train-only 复核判为标签噪声，已撤出（原件留作高风险风格探针） | 正文与逐段 provenance 不随库分发 |
+| AI 生成 | 853 段 / 30 个生成器标签 | GLM 系（v2 会话生成）；DeepSeek / Kimi / 豆包 / 通义千问 / ChatGPT / Gemini / Claude / MiMo / GPT-6.1-sol / deepseek-v4.1-flash 网页版；阿里云百炼 API 8 模型；v9/v10 方舟 API（MiniMax-M2.5、doubao-seed-2-1-lite/pro、glm-5.3、kimi-k3.1-pro）与 MiniMax 拟人化提示词包；v11 新增 glm-5.3 学术 30 段、MiniMax-M2.5 文学 30 段与 3 个 fresh test 模型（glm-5-3-flash、deepseek-v4-1-flash-economy、doubao-seed-2-0-mini，各 45 段）；v15 新增 3 个全新生成器（kimi-k2.7-code、deepseek-v4-1-flash、doubao-seed-2-1-lite，各 45 段）与 28 段科普叙事补样。提示词见 [AI_PROMPTS.md](AI_PROMPTS.md) | `ai/` 全量入库 |
 | 润色 | 6 段 | 人写段落的 AI 润色派生样本（文件头带溯源注释） | 不随库分发 |
 
 ## 人写语料四道保真关
@@ -47,12 +47,13 @@ train 内的单篇集中仍存在，集中度风险顺延。
 先核对，不一致即拒绝评测。α 与校准常量只依据 train split 调整，test split 每个
 语料版本只跑一次。
 
-当前切分构成（v11，指纹 `df3f3511…`）：human 148 train / 37 test（416 / 93 窗），
-ai 515 / 135（1228 / 341 窗），polished 5 / 1（13 / 3 窗）。human test 为 15 个
-train 未出现的作者组（22 段 2020–2021 年公文 + 15 段旧 train 回填）；AI test
-为 3 个全新生成器（glm-5-3-flash、deepseek-v4-1-flash-economy、
-doubao-seed-2-0-mini，各 45 段），覆盖文学 / 学术 / 新闻 / 公文四语域。
-v10 test 全部并入 train。
+当前切分构成（v15，指纹 `a60d49d8…`）：human 477 train / 120 test（1332 / 317 窗），
+ai 677 / 176（1627 / 477 窗），polished 5 / 1（13 / 3 窗）。test 两侧都是新的：human
+为 53 个 train 未出现的作者组（《软件学报》+《电子学报》第二批，全部 2015–2021），
+AI 为 3 个全新生成器（kimi-k2.7-code、deepseek-v4-1-flash、doubao-seed-2-1-lite，
+各 45 段）加 41 段旧 train 整组回填。这是首个「人写未见作者 + AI 未见生成器」的
+双侧新鲜 test，已于 2026-10-27 一次性消耗。v14 test 的 222 段已并入 train；
+更早的 v11 切分（`df3f3511…`）为历史口径。
 
 ## 结论（v11 轮，2026-10-27：公文专名证据 + b 路高置信增强 + 新整组留出 test）
 

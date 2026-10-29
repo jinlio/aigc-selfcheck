@@ -10,7 +10,7 @@
 ## 环境（Windows + CUDA）
 
 ```powershell
-git clone https://github.com/jinlio/aigc-selfcheck-public.git aigc-selfcheck
+git clone https://github.com/jinlio/aigc-selfcheck.git aigc-selfcheck
 cd aigc-selfcheck
 uv sync                      # Python 3.12；lockfile 里的 torch 是 CPU 版
 ```
@@ -436,8 +436,12 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
 
 ## 本地数据归档
 
-本公开仓库由当前工作树生成**单一根提交**，不继承旧私有仓库的提交历史；旧私有仓库
-`jinlio/aigc-selfcheck` 仍保持私有，仅用于续训。
+本公开仓库有两段互不相关的历史：0.2.0 的公开快照（根提交）与后续训练轮次，
+0.2.1 时以 `--allow-unrelated-histories` 合并为一条线。因此它不是单一根提交，
+但两段历史都不含第三方人写正文、评分缓存与训练日志。
+
+续训用的私有仓库是 `jinlio/aigc-selfcheck-private`（保持 private）；
+公开仓库 `jinlio/aigc-selfcheck` 只接收剥离版权正文后的快照。
 
 ```
 aigc-selfcheck/           ← git 克隆
@@ -454,19 +458,25 @@ _aigc_selfcheck_data/     ← 本地数据归档（不进 git）
 
 ## 提交前自检
 
-提交前用 `git ls-files` 核对一次没有第三方正文入库：
+发布快照前，用 `git ls-files` 核对一次没有第三方正文入库；清理历史时从**私有仓库**
+的镜像上做，不要把公开仓库再镜像一遍（那会把要清的东西一起带回来）：
 
 ```bash
-git clone --mirror https://github.com/jinlio/aigc-selfcheck.git aigc-selfcheck-old.git
+git clone --mirror https://github.com/jinlio/aigc-selfcheck-private.git aigc-selfcheck-old.git
 cd aigc-selfcheck-old.git
 git filter-repo --invert-paths \
   --path calibration/raw \
   --path calibration/out \
   --path calibration/polished \
+  --path calibration/manifest.jsonl \
+  --path calibration/seeds.json \
+  --path calibration/fp-boundary-review.md \
   --path calibration/probe/human.jsonl \
   --path calibration/probe/score-cache.jsonl \
   --path PLAN.md \
   --path .zcode/plans
 ```
 
-然后把重写后的仓库推到**新的公开仓库**。不要把旧私有仓库直接改为 public；无论哪种方式，提交前都用 `git ls-files` 再核对一次没有私有正文。
+然后把重写后的仓库推到公开仓库。不要让公开仓库直接指向私有历史；无论哪种方式，提交前都用 `git ls-files` 再核对一次没有私有正文，并额外跑一次
+`git rev-list --objects --all | grep -E 'calibration/(raw|out|polished|manifest\.jsonl|seeds\.json)'`
+——**删掉工作树里的文件不等于删掉历史里的文件**，0.2.0 的根提交就曾把 `manifest.jsonl` 与 `seeds.json` 带进公开库。

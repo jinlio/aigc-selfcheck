@@ -41,7 +41,7 @@ uv run aigc-selfcheck 论文.docx --profile balanced
 - **所在段落改写示例（实验性）**：只对最高风险的少量窗口生成，明确标注「需人工确认」，不自动替换原文。
 - **校准卡**：v15 双侧全新鲜 test 与通用校准的指标、样本量和局限（v11–v14 为历史口径）。
 - **改稿对比**：单独生成一份 `selfcheck-compare.html`。
-- 自动跳过标题、作者信息、参考文献、公式、图注、引文、表格，并在报告中灰显。
+- 自动跳过标题、目录、封面/作者信息、列表条目、代码、参考文献、公式、图注、引文、表格与非中文段落（如英文摘要），并在报告中灰显标注跳过原因。
 
 ## 三档配置：低配能跑，高配更准
 
@@ -74,7 +74,7 @@ uv run aigc-selfcheck 论文.docx --profile balanced
 需要 Python 3.11+ 与 [uv](https://docs.astral.sh/uv/)：
 
 ```bash
-git clone https://github.com/jinlio/aigc-selfcheck-public.git
+git clone https://github.com/jinlio/aigc-selfcheck.git
 cd aigc-selfcheck
 uv sync
 ```

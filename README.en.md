@@ -41,7 +41,7 @@ It is a **self-check reference**, not an oracle for CNKI, Wanfang, Zhuque or any
 - **Model rewrite example (experimental)**: generated only for the highest-risk few windows, labelled "verify manually", never applied automatically.
 - **Calibration card**: v15 both-sides-fresh test and general metrics, sample sizes and caveats (v11–v14 figures are historical).
 - **Before/after comparison**: a separate `selfcheck-compare.html`.
-- Titles, author metadata, references, formulas, captions, quotes and tables are skipped automatically and shown greyed-out.
+- Titles, TOC entries, cover/author fields, list items, code, references, formulas, captions, quotes, tables and non-Chinese paragraphs (e.g. an English abstract) are skipped automatically; the report greys them out and states why.
 
 ## Three profiles: runs on low-end machines, sharper on high-end
 
@@ -74,7 +74,7 @@ Profiles only change which lanes run, which base model is loaded and whether mod
 Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/):
 
 ```bash
-git clone https://github.com/jinlio/aigc-selfcheck-public.git
+git clone https://github.com/jinlio/aigc-selfcheck.git
 cd aigc-selfcheck
 uv sync
 ```

@@ -38,8 +38,8 @@ dependencies = [
 aigc-selfcheck = "aigc_selfcheck.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/jinlio/aigc-selfcheck-public"
-Issues = "https://github.com/jinlio/aigc-selfcheck-public/issues"
+Homepage = "https://github.com/jinlio/aigc-selfcheck"
+Issues = "https://github.com/jinlio/aigc-selfcheck/issues"
 
 [build-system]
 requires = ["hatchling"]
