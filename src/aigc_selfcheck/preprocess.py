@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 from .docio import Block
 from .features import symbol_density
+
 SENT_DELIMITERS = "。！？；"
 CLOSERS = "”』」！）】"
 MIN_SENT_CHARS = 30
@@ -36,6 +37,22 @@ def _cjk_ratio(text: str) -> float:
     if not visible:
         return 0.0
     return sum("\u4e00" <= ch <= "\u9fff" for ch in visible) / len(visible)
+
+
+def _is_non_chinese(text: str) -> bool:
+    """判断整段是否「不是中文文本」。
+
+    单看汉字占比会误杀中文学术论文的常见写法：整段引用英文原句、术语密度高
+    的方法段。这里加两个豁免——段落里有中文句读（。！？；），或首尾有中文
+    叙述框架（≥8 个汉字），都视为中文段落。
+    """
+    if len(text) < 20:
+        return False
+    if re.search(r"[。！？；]", text):
+        return False
+    if sum("\u4e00" <= ch <= "\u9fff" for ch in text) >= 8:
+        return False
+    return _cjk_ratio(text) < 0.20
 
 
 def _looks_like_formula(text: str) -> bool:
@@ -91,7 +108,7 @@ def classify_block(block: Block) -> Block:
         kind = "formula"
     elif _RE_CAPTION.match(text) and len(text) < 80:
         kind = "caption"
-    elif len(text) >= 20 and _cjk_ratio(text) < 0.20:
+    elif _is_non_chinese(text):
         # 中文检测器（含中文 PPL 基座）对英文/纯符号段落没有有效信号，
         # 打分只是噪声；英文摘要、英文标题一律跳过。
         kind = "non_zh"

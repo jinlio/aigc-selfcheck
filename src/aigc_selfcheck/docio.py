@@ -60,7 +60,23 @@ def _is_pdf_heading(line: str) -> bool:
         return False
     if any(mark in stripped for mark in "。！？；"):
         return False
+    # 目录行：点引线/制表符接页码，或纯「标题 .... 7」
+    if _RE_TOC_LINE.search(stripped):
+        return True
+    if _RE_DOCX_HEADING.match(stripped) and not re.search(r"[，、：]", stripped):
+        return True
+    # 「致  谢」这类两端留空的短标题
+    if re.fullmatch(r"[\u4e00-\u9fff]{1,3}[\u3000 ]{2,}[\u4e00-\u9fff]{1,3}", stripped):
+        return True
     return bool(_RE_PDF_HEADING.match(stripped))
+
+
+def _is_pdf_cover_field(line: str) -> bool:
+    """PDF 抽出的封面字段行（题　　目　…、指导教师　…、【关键词】…）。"""
+    stripped = line.strip()
+    return len(stripped) <= 40 and bool(
+        _RE_COVER_FIELD.match(stripped) or _RE_BRACKET_FIELD.match(stripped)
+    )
 
 
 def _join_pdf_lines(lines: list[str]) -> str:
@@ -73,6 +89,24 @@ def _join_pdf_lines(lines: list[str]) -> str:
         else:
             text += " " + line
     return text.strip()
+
+
+def _demote_leading_short_blocks(blocks: list[Block], max_scan: int = 3) -> list[Block]:
+    """把文档开头连续的短段落降为 metadata（封面首行常无任何标记）。
+
+    只在整篇块数足够（≥10）时生效，最多看前 3 块，且只处理 ≤20 字、不含
+    句末标点的段落——正常正文的首段很少同时满足这三条。
+    """
+    if len(blocks) < 10:
+        return blocks
+    for block in blocks[:max_scan]:
+        if block.kind != "paragraph":
+            break
+        text = block.text.strip()
+        if len(text) > 20 or re.search(r"[。！？；]", text):
+            break
+        block.kind = "metadata"
+    return blocks
 
 
 def _pdf_text_to_blocks(text: str) -> list[Block]:
@@ -94,15 +128,20 @@ def _pdf_text_to_blocks(text: str) -> list[Block]:
             continue
         if re.fullmatch(r"\d{1,4}", line):
             continue
+        if _is_pdf_cover_field(line):
+            flush()
+            blocks.append(Block(kind="metadata", text=line, index=len(blocks), source="pdf"))
+            continue
         if _is_pdf_heading(line):
             flush()
-            blocks.append(Block(kind="heading", text=line, index=len(blocks), source="pdf"))
+            kind = "toc" if _RE_TOC_LINE.search(line) else "heading"
+            blocks.append(Block(kind=kind, text=line, index=len(blocks), source="pdf"))
             continue
         buffer.append(line)
         if line.endswith(("。", "！", "？", "；")):
             flush()
     flush()
-    return blocks
+    return _demote_leading_short_blocks(blocks)
 
 
 def read_pdf(path: str | Path) -> list[Block]:
@@ -246,12 +285,67 @@ def read_docx(path: str | Path) -> list[Block]:
     return blocks
 
 
+_RE_MD_LIST = re.compile(r"^(?:[-*+]\s|\[[ xX]\]\s)")
+# 「1. 研究背景」这类有序编号更像章节标题，只有明显带列表语义（缩进/多项/
+# 长内容）才当列表；这里用「序号 + 空格 + 短标题且无句读」排除。
+_RE_MD_ORDERED = re.compile(r"^\d+[.)]\s")
+_RE_MD_TABLE = re.compile(r"^\s*\|.*\|\s*$")
+
+
+def _plaintext_structural_kind(line: str) -> str | None:
+    """纯文本行里可识别的结构块（无 Markdown 标记时的兜底）。
+
+    返回 heading / toc / metadata；普通正文返回 None。只在行很短时才判定，
+    避免把正常长句误杀。
+    """
+    stripped = line.strip()
+    if not stripped or len(stripped) > 40:
+        return None
+    if _RE_TOC_LINE.search(stripped):
+        return "toc"
+    if _RE_COVER_FIELD.match(stripped) or _RE_BRACKET_FIELD.match(stripped):
+        return "metadata"
+    if re.search(r"[。！？；，、：]", stripped):
+        return None
+    if _RE_DOCX_HEADING.match(stripped):
+        return "heading"
+    # 「致  谢」这类两端留空的两字标题：中间有多个空格、两侧各 ≤3 个汉字
+    if re.fullmatch(r"[\u4e00-\u9fff]{1,3}[\u3000 ]{2,}[\u4e00-\u9fff]{1,3}", stripped):
+        return "heading"
+    return None
+
+
+def _is_md_list_item(line: str) -> bool:
+    """Markdown 列表项判定。
+
+    「1. 研究背景」这类短标题用有序编号，但它是章节标题不是列表项；
+    列表项通常有缩进、含句读，或是链接/勾选框。
+    """
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if _RE_MD_LIST.match(stripped):
+        return True
+    if _RE_MD_ORDERED.match(stripped):
+        # 缩进的有序项一律算列表；顶格的短编号行（无句读、≤20 字）当标题
+        indented = line[: len(line) - len(line.lstrip())] != ""
+        body = _RE_MD_ORDERED.sub("", stripped)
+        if indented or len(body) > 20 or re.search(r"[。！？；，、：]", body):
+            return True
+        return False
+    return False
+
+
 def read_plaintext(path: str | Path) -> list[Block]:
     raw = Path(path).read_text(encoding="utf-8")
     blocks: list[Block] = []
     para_lines: list[str] = []
     fence_lines: list[str] = []
+    table_lines: list[str] = []
+    list_lines: list[str] = []
     in_fence = False
+    in_table = False
+    in_list = False
 
     def flush_para() -> None:
         if para_lines:
@@ -267,18 +361,62 @@ def read_plaintext(path: str | Path) -> list[Block]:
                 blocks.append(Block(kind="code", text=text, index=len(blocks)))
             fence_lines.clear()
 
+    def flush_table() -> None:
+        if table_lines:
+            text = "\n".join(table_lines).strip()
+            if text:
+                blocks.append(Block(kind="table", text=text, index=len(blocks), source="markdown"))
+            table_lines.clear()
+
+    def flush_list() -> None:
+        if list_lines:
+            text = "\n".join(list_lines).strip()
+            if text:
+                # 列表项是碎片化结构，不做文风检测；但保留位置供报告灰显
+                blocks.append(Block(kind="list", text=text, index=len(blocks), source="markdown"))
+            list_lines.clear()
+
+    def flush_all() -> None:
+        flush_para()
+        flush_list()
+        flush_table()
+
     for line in raw.splitlines():
         stripped = line.strip()
         if stripped.startswith(("```", "~~~")):
             if in_fence:
                 flush_fence()
             else:
-                flush_para()
+                flush_all()
             in_fence = not in_fence
             continue
         if in_fence:
             fence_lines.append(line)
             continue
+
+        # Markdown 表格：连续以 | 开头/结尾的行
+        if _RE_MD_TABLE.match(line):
+            if not in_table:
+                flush_para()
+                flush_list()
+                in_table = True
+            table_lines.append(stripped)
+            continue
+        if in_table:
+            flush_table()
+            in_table = False
+
+        # Markdown 列表：连续列表项聚成一块，不并入正文
+        if _is_md_list_item(line):
+            if not in_list:
+                flush_para()
+                in_list = True
+            list_lines.append(stripped)
+            continue
+        if in_list:
+            flush_list()
+            in_list = False
+
         if not stripped:
             flush_para()
             continue
@@ -288,7 +426,13 @@ def read_plaintext(path: str | Path) -> list[Block]:
             if heading:
                 blocks.append(Block(kind="heading", text=heading, index=len(blocks)))
             continue
+        # 无标记纯文本里的标题/目录/封面行：单独成块，不拼进正文
+        structural = _plaintext_structural_kind(stripped)
+        if structural is not None:
+            flush_para()
+            blocks.append(Block(kind=structural, text=stripped, index=len(blocks), source="plaintext"))
+            continue
         para_lines.append(stripped)
     flush_fence()
-    flush_para()
-    return blocks
+    flush_all()
+    return _demote_leading_short_blocks(blocks)

@@ -7,7 +7,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfgen import canvas
 
-from aigc_selfcheck.docio import read_document, read_docx, read_pdf
+from aigc_selfcheck.docio import read_document, read_docx, read_pdf, read_plaintext
 
 
 def _make_pdf(path: Path, lines: list[str]) -> None:
@@ -110,6 +110,95 @@ def test_body_short_paragraph_without_number_is_detectable(tmp_path: Path) -> No
 
     assert blocks[0].kind == "paragraph"
     assert blocks[1].kind == "paragraph"
+
+
+class TestPdfStructure:
+    """PDF 没有样式信息，全靠文本启发式——这里覆盖封面/目录/标题。"""
+
+    def test_cover_fields_and_toc(self) -> None:
+        from aigc_selfcheck.docio import _pdf_text_to_blocks
+
+        text = (
+            "湖北大学知行学院\n本科毕业论文（设计）\n"
+            "题    目　某小区建设项目可行性研究\n"
+            "学    院　经济与管理学院\n"
+            "目  录\n绪论.......7\n1.1 项目概况.......10\n"
+            "1 总论\n1.1 项目概况\n"
+            "项目名称为某小区建设项目，拟建于武汉市汉阳区。\n"
+            "致  谢\n"
+        )
+        kinds = [b.kind for b in _pdf_text_to_blocks(text)]
+
+        assert kinds.count("toc") == 2
+        assert "metadata" in kinds
+        assert kinds[-1] == "heading"  # 致  谢
+        assert kinds.count("paragraph") >= 1
+
+    def test_leading_cover_demoted_only_in_long_docs(self) -> None:
+        from aigc_selfcheck.docio import Block, _demote_leading_short_blocks
+
+        long_doc = [Block(kind="paragraph", text="湖北大学知行学院", index=0)]
+        long_doc += [Block(kind="paragraph", text=f"正文第{i}段内容足够长。", index=i + 1) for i in range(9)]
+        assert _demote_leading_short_blocks(long_doc)[0].kind == "metadata"
+
+        short_doc = [Block(kind="paragraph", text="短文本第一行", index=0), Block(kind="paragraph", text="正文。", index=1)]
+        assert _demote_leading_short_blocks(short_doc)[0].kind == "paragraph"
+
+
+class TestPlaintextStructure:
+    def test_markdown_table_and_list_skipped(self, tmp_path: Path) -> None:
+        path = tmp_path / "doc.md"
+        path.write_text(
+            "# 1 总论\n\n"
+            "- [绪论](#绪论)\n- [概况](#概况)\n\n"
+            "正文段落内容在这里，描述实验设置与评价指标。\n\n"
+            "| 序号 | 费用 | 金额 |\n|---|---|---|\n| 1 | 土地 | 149832 |\n",
+            encoding="utf-8",
+        )
+        blocks = read_plaintext(path)
+        kinds = [b.kind for b in blocks]
+
+        assert "list" in kinds
+        assert "table" in kinds
+        assert kinds.count("heading") == 1
+
+    def test_ordered_short_line_is_heading_not_list(self, tmp_path: Path) -> None:
+        path = tmp_path / "doc.md"
+        path.write_text(
+            "1. 研究背景\n\n正文段落内容在这里，描述研究背景与意义。\n",
+            encoding="utf-8",
+        )
+        blocks = read_plaintext(path)
+
+        assert blocks[0].kind == "heading"
+
+    def test_ordered_long_line_is_list(self, tmp_path: Path) -> None:
+        path = tmp_path / "doc.md"
+        path.write_text(
+            "1. 首先采集样本，覆盖 2015 至 2021 年的论文全文并核对作者信息。\n"
+            "2. 然后清洗格式，去除页眉页脚与参考文献。\n",
+            encoding="utf-8",
+        )
+        blocks = read_plaintext(path)
+
+        assert blocks[0].kind == "list"
+
+    def test_plaintext_toc_and_cover(self, tmp_path: Path) -> None:
+        path = tmp_path / "doc.txt"
+        path.write_text(
+            "湖北大学知行学院\n本科毕业论文（设计）\n"
+            "题    目　某小区建设项目可行性研究\n"
+            "目  录\n绪论.......7\n"
+            "项目名称为某小区建设项目，拟建于武汉市汉阳区。\n"
+            "致  谢\n",
+            encoding="utf-8",
+        )
+        blocks = read_plaintext(path)
+        kinds = [b.kind for b in blocks]
+
+        assert "toc" in kinds
+        assert "metadata" in kinds
+        assert kinds[-1] == "heading"
 
 
 def test_pdf_heading_and_paragraph(tmp_path: Path) -> None:
