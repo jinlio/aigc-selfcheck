@@ -1,15 +1,11 @@
 # 跨机续训指南（Windows / CUDA）
 
-本仓库为**公开代码仓库**：只分发代码、AI 自产样本与可审计元数据。人写正文
-（`calibration/raw/`）、润色派生样本（`calibration/polished/`）、冻结切分/评分缓存/训练日志
-（`calibration/out/`）、探针正文与下载缓存（`calibration/probe/`、`calibration/academic/`）
-以及额外 AI 学术语料（`calibration/ai_ark_lite/`、`calibration/ai_academic_lite/texts/`）
-均不随库分发。文中这些路径指私有训练归档；公开仓库不能直接复现历史指标，需按本文档
-重新抓取/生成。
-
-> 本公开仓库由当前工作树生成**单一根提交**，不继承旧私有仓库的历史；旧私有仓库
-> `jinlio/aigc-selfcheck` 仍保持私有，仅用于续训。若以后从旧仓库重新发布，仍需先
-> 用 `git filter-repo`/BFG 清洗历史。
+本仓库分发代码、AI 自产样本与可审计元数据。人写正文（`calibration/raw/`）、
+润色派生样本（`calibration/polished/`）、冻结切分/评分缓存/训练日志（`calibration/out/`）、
+探针正文与下载缓存（`calibration/probe/`、`calibration/academic/`）以及额外 AI 学术语料
+（`calibration/ai_ark_lite/`、`calibration/ai_academic_lite/texts/`）**不随库分发**——
+它们含第三方版权文本，只保存在仓库外的本地数据归档（见下文「本地数据归档」）。
+因此仅凭克隆本仓库无法直接复现历史指标，需按本文档重新抓取/生成。
 
 ## 环境（Windows + CUDA）
 
@@ -59,7 +55,7 @@ uv sync                      # Python 3.12；lockfile 里的 torch 是 CPU 版
   **24.57 窗/秒**，全量 1547 窗（含 test）**1.0 分钟**；同一批窗口 CPU（项目 `.venv`，
   torch 2.14.1+cpu）**0.065 窗/秒**，约 380 倍。CPU/GPU 同窗对比：Δscore 最大 0.0011、
   Δlog_ppl 最大 0.0088（bf16 口径一致），缓存可混用。预热脚本用 `AIGC_DEVICE=cuda`
-  切换 c 路设备（默认 cpu，a/b 始终 cpu）。命令模板见私有归档 `V10_RUNBOOK.md`
+  切换 c 路设备（默认 cpu，a/b 始终 cpu）。命令模板见本地数据归档 `V10_RUNBOOK.md`
   「运行环境（GPU）」。
 - **教训**：`uv run` 会同步 lockfile 把 CUDA 轮子换回 CPU 版；任何 c 路长跑都必须显式用
   `D:/anaconda/envs/learning/python.exe`，不要用 `uv run`。长跑前先确认
@@ -127,7 +123,7 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
   人写段高 **1.4%（24/25 作者全干净）**、AI 窗召回 79.8%（旧回填口径，被 v15
   真实口径取代）、AI 段高 94.7%。v14 train：AUC 0.950、人写误伤 0.5%（4/790）。
   HansPub 147 段撤出决策（标签噪声，train-only 证据：19 误伤窗中 14 窗集中
-  HansPub；重拟合全灭）不变，staging 原件留在私有归档作高风险风格探针原料。
+  HansPub；重拟合全灭）不变，staging 原件留在本地数据归档作高风险风格探针原料。
 - v11 时代的切分指纹 `df3f35119ee8ccc40ebc39916a61f99fbead1c36dbe4174313e7b78bc5b184ab`：
   train human 148 段 / 416 窗、ai 515 段 / 1228 窗、polished 5 段 / 13 窗；
   test human 37 段 / 93 窗（15 组）、ai 135 段 / 341 窗（3 个 fresh 生成器）、
@@ -168,7 +164,7 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
   该类 b 中位 **0.206**（其余四类 0.957–0.996），c 仍正常 0.648。豆包在
   「讲给外行听」提示下大量用比喻句，cmj 认不出；v12 裁决在该类 **0 窗**生效
   （c 未低于 0.60），融合层无法修复，抬 c 权重已被路线 3 否决。探针只读。
-  探针正文与报告在私有归档 `ai_ark_lite/`（该目录 gitignore，不随公开库分发）。
+  探针正文与报告在本地数据归档 `ai_ark_lite/`（该目录 gitignore，不随库分发）。
 - **口径注意**：`probe/README.md` 的「段误伤 0%」是 `段中位 > HOT(0.75)`；
   产品「高」带是 `段中位 ≥ 0.60`。文言散文 v11 基线下前者 0%、后者 8%（2/25）。
 - 以下 v8/v9/v10 记录为历史口径，不得与 v11 横比，也不得据此调参。
@@ -194,7 +190,7 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
   重叠窗，另一位作者一窗）都使用「不仅……而且……」「实际上」等
   议论文连接模板，`connective_density` 落在人写 train 的 100% 分位，b 路同时
   0.73–0.91；属于「学术博客议论」与「AI 议论文模板」的边界，不是数据泄漏。
-  逐窗口位数值与复核记录保存在私有训练归档；test 已消耗，未据此调参。
+  逐窗口位数值与复核记录保存在本地数据归档；test 已消耗，未据此调参。
 - v7 历史（无上下文 c 路、α=0/0.5/0.5、μ/σ=4.67/0.81）：test 融合 AUC 0.976、
   人写误伤 4.2%、召回 89%（fresh 92% / 回填 82%）、b/c 0.974/0.945、a 0.483。
   只作历史记录，不能与 v8 横比，也不得据此调参。
@@ -261,7 +257,7 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
   北京/上海/武汉 2020 统计公报与国务院 2021 政府工作报告，官方文件直连抓取、
   发布日期 ≤2021；另 1 段公版 classic 层）；AI +527 段暂存（MiniMax-M2.5 API，
   新语域提示词包 news/wiki/gov/literary 各 12 主题 × 2 提示词 × 6 轮，正文存
-  私有归档 ai_register_mm/），其中每语域 10 段并入主语料。v9 切分（指纹
+  本地数据归档 ai_register_mm/），其中每语域 10 段并入主语料。v9 切分（指纹
   27b5b983…）test 为「未见生成器 × 新语域」口径：ai/test 40 段全部为
   MiniMax-M2.5（109 窗），human/test 27 段（12 段全新 gov 作者 + 15 段旧
   train 回填，76 窗）；v8 test 段全部强制并入 train。
@@ -281,7 +277,7 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
     回退键 73abc54f56f1→100f29181213）；守卫测试与黄金快照同步更新。
   - v9 test（MiniMax-M2.5 × news/wiki/gov/literary 四新语域，109 AI 窗 +
     76 人写窗）以新配置一次性评测（2026-10-27，结果 `calibration/out/eval-v9.log`，
-    归档副本在私有归档）：
+    归档副本在本地数据归档）：
     - 验收线全过：融合 AUC **0.973**（a 0.621 / b 0.962 / c 0.899）、
       人写窗口误伤 **2.6%**（2/76）。AI **段落「高」召回 40/40=100%**
       （news/wiki/gov/literary 四语域各自 10/10，整组未见生成器）；
@@ -425,24 +421,40 @@ a/b 两路不使用上下文，缓存键与常量无关，一直可复用；C �
 
 ## 公开仓库数据边界（2026-10-26 已执行）
 
-已移出仓库，保存在仓库外私有归档 `_aigc_selfcheck_private/2026-10-26-public-cleanup/`：
+以下内容含第三方版权文本或来源标识，**不随仓库分发**，保存在仓库外的本地数据归档
+（默认 `_aigc_selfcheck_data/`，可用环境变量 `AIGC_SELFCHECK_DATA` 覆盖）：
 
 - 第三方人写正文、审读记录与下载缓存：`calibration/raw/`、`calibration/academic/{human.jsonl,human_texts,raw,report.json,score-cache.jsonl}`、`calibration/probe/{human.jsonl,score-cache.jsonl}`
-- 逐段溯源与种子清单（含第三方文章 URL 与作者标识，不公开）：`calibration/manifest.jsonl`、`calibration/seeds.json`
+- 逐段溯源与种子清单（含第三方文章 URL 与作者标识）：`calibration/manifest.jsonl`、`calibration/seeds.json`
 - v7 test 人写误伤逐窗复核记录（含来源标识）：`calibration/fp-boundary-review.md`
 - 派生润色样本：`calibration/polished/`
 - 冻结切分、评分缓存与训练日志：`calibration/out/`
 - 额外 AI 学术语料：`calibration/ai_ark_lite/`、`calibration/ai_academic_lite/{texts,score-cache.jsonl}`
 - 内部计划/代理状态：`PLAN.md`、`ROADMAP.md`、`COMPETITIVE-LANDSCAPE.md`、`.zcode/plans/`、`.mimosa/`
 
-保留：代码、测试、文档、`calibration/ai/`（AI 自产样本，含 v9 并入的 40 段 MiniMax 样本）、`AI_PROMPTS.md`、探针 README 与不含正文的汇总。作者身份与逐段来源一律只做聚合表述：公开仓库不含作者名单、博主 ID 或第三方文章 URL 清单。公开版 `fetch_human_corpus.py` 已移除站点专属发现逻辑与站点白名单（种子自备 + `--allow-host`，内置白名单仅 gutenberg.org 与 web.archive.org）。
+仓库内保留：代码、测试、文档、`calibration/ai/`（AI 自产样本，含 v9 并入的 40 段 MiniMax 样本）、`AI_PROMPTS.md`、探针 README 与不含正文的汇总。作者身份与逐段来源一律只做聚合表述：仓库内不含作者名单、博主 ID 或第三方文章 URL 清单。`fetch_human_corpus.py` 不含站点专属发现逻辑（种子自备 + `--allow-host`，内置白名单仅 gutenberg.org 与 web.archive.org）。
 
-## 历史隔离
+## 本地数据归档
 
 本公开仓库由当前工作树生成**单一根提交**，不继承旧私有仓库的提交历史；旧私有仓库
 `jinlio/aigc-selfcheck` 仍保持私有，仅用于续训。
 
-如果以后要从旧私有仓库重新发布，仍需在全新 mirror clone 中清洗历史：
+```
+aigc-selfcheck/           ← git 克隆
+_aigc_selfcheck_data/     ← 本地数据归档（不进 git）
+  calibration/raw/
+  calibration/out/
+  calibration/polished/
+  calibration/probe/
+  calibration/academic/
+```
+
+把归档目录与本仓库放在同一父目录下，`calibration/` 下的脚本按相对路径读取即可；
+也可用环境变量 `AIGC_SELFCHECK_DATA` 指向其他位置。
+
+## 提交前自检
+
+提交前用 `git ls-files` 核对一次没有第三方正文入库：
 
 ```bash
 git clone --mirror https://github.com/jinlio/aigc-selfcheck.git aigc-selfcheck-old.git

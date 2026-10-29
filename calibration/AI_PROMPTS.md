@@ -148,7 +148,7 @@ AI 侧由 `scripts/gen_ai_minimax.py` 走 MiniMax Anthropic 兼容端点批量�
 每个语域包 12 个主题 × 2 个提示词模板（占位符 `{topic}`）× 6 轮重复，
 共 576 任务；成功 527 段（失败 47 条重试后仍不达长度/含清单格式的自动
 落盘标 fail），其中**每语域 10 段并入主语料 `calibration/ai/`**（40 段，
-v9 test 的整组留出生成器），其余 487 段留在私有归档作 v10 train 候选与
+v9 test 的整组留出生成器），其余 487 段留在本地数据归档作 v10 train 候选与
 held-out 探针。主题与提示词全文见 `scripts/gen_ai_minimax.py` 的
 `*_TOPICS` / `*_PROMPTS` 常量（新闻六要素、百科定义式、公文政策解读、
 散文意象四类，各配两个措辞不同的模板以防模板指纹）。

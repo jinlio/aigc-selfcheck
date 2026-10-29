@@ -8,9 +8,10 @@ build/
 .pytest_cache/
 .ruff_cache/
 
-# 公开仓库数据边界：不收录第三方人写正文、派生润色样本、评分缓存、
-# 冻结切分、训练日志、探针正文与下载缓存。只保留可审计元数据与 AI 自产样本。
-# 注意：manifest/seeds 含第三方文章 URL 与作者标识，同样不公开。
+# 数据边界：不收录第三方人写正文、派生润色样本、评分缓存、冻结切分、
+# 训练日志、探针正文与下载缓存。仓库内只保留可审计元数据与 AI 自产样本。
+# 注意：manifest/seeds 含第三方文章 URL 与作者标识，同样不收录。
+# 含版权正文的目录放在仓库外的本地数据归档，见 TRAINING.md。
 calibration/raw/
 calibration/out/
 calibration/polished/
