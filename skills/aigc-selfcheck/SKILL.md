@@ -6,7 +6,7 @@ allowed-tools:
   - Read
 metadata:
   trigger: 论文提交前的 AIGC 风险自查、AI 痕迹解释、改稿前后对比
-  version: "0.2.0"
+  version: "0.2.1"
   privacy: 本地分析；首次运行可能需要下载模型权重，文本不上传
 ---
 

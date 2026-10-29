@@ -1,6 +1,6 @@
 [project]
 name = "aigc-selfcheck"
-version = "0.2.0"
+version = "0.2.1"
 description = "纯本地的中文文本 AIGC 风险自检台：三路检测器投票 + 逐句可解释热力图，单文件 HTML 报告，文本不出本机。"
 readme = "README.md"
 requires-python = ">=3.11"
