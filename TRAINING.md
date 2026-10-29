@@ -479,4 +479,6 @@ git filter-repo --invert-paths \
 
 然后把重写后的仓库推到公开仓库。不要让公开仓库直接指向私有历史；无论哪种方式，提交前都用 `git ls-files` 再核对一次没有私有正文，并额外跑一次
 `git rev-list --objects --all | grep -E 'calibration/(raw|out|polished|manifest\.jsonl|seeds\.json)'`
-——**删掉工作树里的文件不等于删掉历史里的文件**，0.2.0 的根提交就曾把 `manifest.jsonl` 与 `seeds.json` 带进公开库。
+——**删掉工作树里的文件不等于删掉历史里的文件**。0.2.0 的根提交就曾把 `manifest.jsonl`、`seeds.json`
+与 `fp-boundary-review.md` 带进公开库，虽然下一个提交就从工作树删除了，但历史对象一直可取回，
+直到 2026-10-29 用 `git filter-repo` 重写并强推才真正清除（同时重打 `v0.2.0` / `v0.2.1`）。

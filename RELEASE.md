@@ -36,7 +36,7 @@
 
 - **随库分发**：代码、测试、文档、`calibration/ai/` 的 AI 自产样本（853 段）、可审计元数据、探针 README 与不含正文的汇总。
 - **不随库分发**（保存在仓库外的本地数据归档）：第三方人写正文与审读记录（`calibration/raw/`）、润色派生样本（`calibration/polished/`）、冻结切分/评分缓存/训练日志（`calibration/out/`）、探针正文与下载缓存（`calibration/probe/`、`calibration/academic/`）、额外 AI 学术语料（`calibration/ai_ark_lite/`、`calibration/ai_academic_lite/texts/`）。它们含第三方版权文本，不进入版本库。
-- **历史**：0.2.1 由两段互不相关的历史合并而成（0.2.0 的公开快照 + 训练轮次），两段都不含第三方人写正文、评分缓存与训练日志。但 **0.2.0 根提交 `2a5c637` 仍留有 `calibration/manifest.jsonl` 与 `calibration/seeds.json`**（已在后续提交删除，但历史对象可经克隆取回）——两者是逐段 URL 与作者标识清单，属发布遗留问题，处置见下方「已知问题」。
+- **历史**：0.2.1 由两段互不相关的历史合并而成（0.2.0 的公开快照 + 训练轮次），两段都不含第三方人写正文、评分缓存与训练日志。0.2.0 发布时曾把 `calibration/manifest.jsonl`、`calibration/seeds.json`、`calibration/fp-boundary-review.md` 带进公开历史（逐段 URL + 作者标识，无正文）；2026-10-29 已用 `git filter-repo --invert-paths` 重写公开历史并强推清除，同时重打了 `v0.2.0` / `v0.2.1` 两个 tag。当前公开历史的每个提交都不含这三个路径，`git rev-list --objects --all` 查不到。
 
 ## 发布前验证（必须全绿）
 
@@ -87,7 +87,7 @@ uv run ruff check .
 - 增强召回会增加误报，默认关闭。
 - 改稿对比按标题匹配，标题改动会显示为新增/删除。
 - 模型改写示例依赖 C 路基座；`lite` 默认关闭，纯 CPU 的 `balanced`/`max` 自动跳过。
-- **公开历史中仍可取回 `calibration/manifest.jsonl` 与 `calibration/seeds.json`**（0.2.0 根提交 `2a5c637`，248 个文件的工作树快照）。两者已从当前树删除并在 `.gitignore` 中屏蔽，但 `git rev-list --objects --all` 仍能列出、克隆后 `git show 2a5c637:<path>` 能取回。内容为第三方文章的 URL、作者标识、发布日期与 sha256，**不含正文**；仍与「不公开逐段 provenance」的承诺不符。处置方案：用 `git filter-repo` 重写公开历史并强推，或删除仓库重建后重新发布 0.2.1。**本轮未执行**，需人工决定。
+- ~~公开历史中仍可取回 `calibration/manifest.jsonl` 与 `calibration/seeds.json`~~ — **已于 2026-10-29 处置**：用 `git filter-repo --invert-paths` 重写公开历史，清除上述两个文件与 `calibration/fp-boundary-review.md`，重打 `v0.2.0` / `v0.2.1`，强推 `main` 与 `public-main`。重写前后工作树树对象哈希完全一致（内容零变化），已验证全新克隆取不回这三个路径。代价：2026-10-29 之前克隆的副本需重新拉取，旧提交 SHA 全部失效。
 
 ## 发布步骤
 
