@@ -610,6 +610,8 @@ th.num {
 .risk-badge.r-low { color: var(--risk-low); background: var(--risk-low-bg); }
 .risk-badge.r-mid { color: var(--risk-mid); background: var(--risk-mid-bg); }
 .risk-badge.r-high { color: var(--risk-high); background: var(--risk-high-bg); }
+.risk-badge.r-none { color: var(--ink-3); background: rgba(120, 120, 120, 0.12); }
+.band-none .score-value { color: var(--ink-3); }
 
 .reasons {
   color: var(--ink-2);
@@ -698,6 +700,11 @@ th.num {
   color: var(--ink-2);
 }
 .review-note.review-short b { color: var(--blue-ink); }
+.review-note.review-info {
+  background: rgba(120, 120, 120, 0.09);
+  color: var(--ink-2);
+}
+.review-note.review-info b { color: var(--ink); }
 .section-title {
   color: var(--ink);
   font-weight: 650;

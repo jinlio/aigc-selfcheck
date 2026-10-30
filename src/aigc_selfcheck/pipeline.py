@@ -12,6 +12,7 @@ from pathlib import Path
 from . import meta as meta_layer
 from .advice import review_note_for
 from .cache import ScoreCache
+from .constants import BAND_SETS, DEFAULT_BAND_SET, MTLD_FLOOR, BandSet
 from .contexts import preceding_context
 from .detectors import Detector
 from .docio import read_document
@@ -24,6 +25,8 @@ from .explain import (
 from .fuse import (
     FusedWindow,
     apply_mtld_arbitration,
+    band_distance,
+    boost_floor_rule,
     burstiness_from_windows,
     doc_level,
     fuse_scores,
@@ -36,6 +39,40 @@ from .preprocess import classify_block, detectable, prepare_block
 from .sections import build_sections
 
 MIN_WINDOW_CJK = 6  # 汉字过少的窗口（如纯编号行）三路全跳，记中性分
+
+
+def _band_summary(values: list[FusedWindow], band_set: BandSet) -> dict:
+    """一套口径下的档位摘要，供报告并列显示另一套口径。"""
+    stats = doc_level(values, band_set)
+    return {
+        "label": band_set.label,
+        "band": stats["band"],
+        "score": stats["score"],
+        "median": stats["median"],
+        "p90": stats["p90"],
+        "thresholds": {
+            "robust_low": band_set.robust_low,
+            "tail_low": band_set.tail_low,
+            "robust_high": band_set.robust_high,
+            "tail_high": band_set.tail_high,
+        },
+    }
+
+
+def match_excluded_sections(sections: list[dict], patterns: list[str]) -> set[str]:
+    """把 `--exclude-heading` 的模式展开成实际命中的章节标题。
+
+    用子串匹配而不是正则：用户的直觉是「排除所有含『外文翻译』的标题」，
+    正则元字符（括号、点）在真实标题里到处都是，容易写出意料之外的匹配。
+    """
+    if not patterns:
+        return set()
+    hits: set[str] = set()
+    for section in sections:
+        title = section.get("title") or ""
+        if any(pattern in title for pattern in patterns if pattern):
+            hits.add(title)
+    return hits
 
 
 @dataclass
@@ -84,6 +121,7 @@ class AnalysisResult:
     plan: list[dict] = field(default_factory=list)
     profile: dict = field(default_factory=dict)
     llm_advice_info: dict = field(default_factory=dict)
+    timings: dict[str, float] = field(default_factory=dict)
 
     def top_sentences(self, n: int = 20) -> list[dict]:
         items = []
@@ -141,9 +179,21 @@ def analyze_document(
     enhanced: bool = False,
     profile: dict | None = None,
     llm_advice: bool = False,
+    band_set: BandSet | None = None,
+    exclude_headings: list[str] | None = None,
 ) -> AnalysisResult:
+    """跑完整条管线。
+
+    `band_set` 决定用哪套档位阈值（默认学术口径，见 constants.BAND_SETS）。
+    `exclude_headings` 里的标题及其下属内容不计入**文档级**档位，但仍出热力图
+    与章节地图——外文翻译/附录这类「不是作者原创正文」的部分，混进全文会
+    把正文水位整个抬高（云璟论文实测附录占 61% 窗口）。
+    """
+    bs = band_set or BAND_SETS[DEFAULT_BAND_SET]
+    timings: dict[str, float] = {}
     started = time.time()
     blocks = [classify_block(b) for b in read_document(path)]
+    timings["read"] = round(time.time() - started, 2)
 
     # ── 分句与滑窗（全局句子编号跨 block 递增）──────────────────────────
     block_views: list[BlockView] = []
@@ -234,12 +284,18 @@ def analyze_document(
                 p_fuse=p_fuse,
                 delta=delta,
                 metas=metas_by_job[i],
+                floor_rule=boost_floor_rule(scores, p_fuse),
             )
         )
+    timings["detect"] = round(time.time() - started - sum(timings.values()), 2)
 
     # ── v12：b 高 / c 低的分歧区用 char_mtld 裁决（只抬分）────────────
     # 必须在生成理由之前施加，理由里的 risk 才与实际展示分一致。
-    apply_mtld_arbitration(fused)
+    if apply_mtld_arbitration(fused):
+        for window in fused:
+            if window.floor_rule is None and abs(window.p_fuse - MTLD_FLOOR) < 1e-12:
+                window.floor_rule = "mtld_arbitration"
+    timings["fuse"] = round(time.time() - started - sum(timings.values()), 2)
 
     # ── 白话解释与修改建议（窗口与句级共用，避免重复计算）────────────
     for window in fused:
@@ -291,7 +347,7 @@ def analyze_document(
         sview.reasons = [item["why"] for item in items]
 
     # ── 章节聚合与结构性误伤提示 ──────────────────────────────────────
-    sections, section_for_block = build_sections(block_views, fused)
+    sections, section_for_block = build_sections(block_views, fused, bs)
     for window in fused:
         window.review_note = review_note_for(
             window, section_for_block.get(window.block_index, "")
@@ -333,12 +389,42 @@ def analyze_document(
         (w.metas.get("c") or {}).get("ppl", float("nan")) if "c" in w.metas else float("nan")
         for w in fused
     ]
-    doc = doc_level(fused)
+
+    # 分部分统计：exclude_headings 命中的标题及其下属内容不计入文档级档位。
+    # 典型用法是排除「外文翻译」「附录」「致谢」——这些不是作者原创正文，
+    # 却常常占掉一半以上窗口，把正文水位整个淹没。
+    excluded_titles = match_excluded_sections(sections, exclude_headings or [])
+    kept = [w for w in fused if section_for_block.get(w.block_index) not in excluded_titles]
+    doc = doc_level(kept, bs)
+    partial = None
+    if excluded_titles:
+        partial = {
+            "excluded_titles": sorted(excluded_titles),
+            "n_windows_excluded": len(fused) - len(kept),
+        }
+    doc["band_distance"] = band_distance([w.p_fuse for w in kept], bs, target="低")
+    # 档位边界要能在报告里原样写出来：用户看到「中」时必须知道「中」是怎么划的
+    doc["band_thresholds"] = {
+        "robust_low": bs.robust_low,
+        "tail_low": bs.tail_low,
+        "robust_high": bs.robust_high,
+        "tail_high": bs.tail_high,
+        "min_windows": bs.min_windows,
+    }
+    # 另一套口径只作对照，不覆盖主口径——用户要能同时看到「学术:低 / 通用:中」
+    doc["alternates"] = {
+        name: _band_summary(kept, other)
+        for name, other in BAND_SETS.items()
+        if name != bs.name
+    }
+    doc["partial"] = partial
+
     plan = [
         item
-        for item in revision_plan(fused, doc, section_for_block, limit=8)
-        if item["impact"] > 0 or item["max_risk"] >= 0.75
+        for item in revision_plan(fused, doc, section_for_block, limit=8, band_set=bs)
+        if item["cleared_windows"] > 0 or item["max_risk"] >= 0.75
     ][:5]
+    timings["aggregate"] = round(time.time() - started - sum(timings.values()), 2)
     result = AnalysisResult(
         source=str(path),
         blocks=block_views,
@@ -354,6 +440,7 @@ def analyze_document(
         plan=plan,
         profile=profile or {},
         llm_advice_info=llm_info,
+        timings=timings,
     )
     result.warnings.extend(warnings)
 

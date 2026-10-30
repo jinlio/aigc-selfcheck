@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from aigc_selfcheck.cache import ScoreCache
+from aigc_selfcheck.constants import BAND_SETS
 from aigc_selfcheck.detectors import build_detectors
 from aigc_selfcheck.pipeline import analyze_document
 from aigc_selfcheck.report import render_report
@@ -50,7 +51,8 @@ class TestPipeline:
                 assert 0.0 <= sent.risk <= 1.0
 
     def test_doc_level(self, mock_result):
-        assert mock_result.doc["band"] in ("低", "中", "高")
+        assert mock_result.doc["band"] in ("低", "中", "高", "样本不足")
+        assert mock_result.doc["band_set"] in BAND_SETS
         assert mock_result.doc["n_windows"] == len(mock_result.fused)
         assert 0.0 <= mock_result.doc["median"] <= 1.0
 
@@ -86,7 +88,13 @@ class TestPayloadAndRender:
         assert payload["guidance"]["intro"]
         assert payload["guidance"]["suggestions"]
         assert any("不要为了降分" in item for item in payload["guidance"]["suggestions"])
-        assert payload["calibration"]["version"] == "v8"
+        assert payload["calibration"]["version"] == "v12"
+        # 报告里的校准数字必须来自产物摘要，不能再写死旧版探针结果
+        assert payload["calibration"]["academic_default"]["ai_window_recall"] == "93.2%"
+        assert payload["calibration"]["academic_default"]["human_window_fp"] == "1.8%"
+        assert payload["doc"]["band_set"] == "academic"
+        assert "general" in payload["doc"]["alternates"]
+        assert payload["doc"]["band_distance"]["target"] == "低"
         assert isinstance(payload["sections"], list)
         assert isinstance(payload["plan"], list)
         assert all("review_note" in w for w in payload["windows"])
@@ -140,7 +148,8 @@ class TestPayloadAndRender:
     def test_payload_golden_snapshot(self, mock_result):
         """确定性 mock + 固定输入 → payload 除易变字段外逐字节一致。"""
         payload = build_payload(mock_result, title="测试报告")
-        for volatile in ("generated_at", "duration_s", "source"):
+        # timings 是真实耗时，哪怕 mock 下也是测量值，不能进逐字节比对
+        for volatile in ("generated_at", "duration_s", "source", "timings"):
             payload.pop(volatile)
         canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True)
         golden_path = Path(__file__).parent / "golden" / "payload_snapshot.json"

@@ -36,6 +36,8 @@ PLAN.md
 ROADMAP.md
 COMPETITIVE-LANDSCAPE.md
 .zcode/
+# 用户反馈含第三方论文的逐轮分数与改写过程，不入公开库
+feedback-*.md
 
 # 运行产物
 selfcheck-report.html

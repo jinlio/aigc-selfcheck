@@ -1,0 +1,38 @@
+{
+  "_comment": "本文件由 scripts/sync_calibration_summary.py 从探针产物生成，勿手改。报告头与 README 引用这里，避免出现「报告写一套、实测另一套」。",
+  "generated_at": "2026-10-30",
+  "tool_version": "0.2.1",
+  "deployed_constants": "v12",
+  "sources": {
+    "academic_human": "calibration/academic/report.json",
+    "academic_ai": "calibration/ai_academic_lite/report.json"
+  },
+  "general": {
+    "label": "通用校准集（v8 train）",
+    "n_human_windows": 268,
+    "n_ai_windows": 297,
+    "auc": 0.963,
+    "human_fp": 0.0,
+    "recall": 0.744,
+    "note": "v8 train 内结果，非独立 test；样本量小，不能外推。来源 calibration/README.md。"
+  },
+  "academic_default": {
+    "label": "学术探针 · 默认融合",
+    "n_human_windows": 114,
+    "n_ai_windows": 351,
+    "ai_window_recall": 0.9316239316239316,
+    "human_window_fp": 0.017543859649122806,
+    "human_doc_high": 0.17777777777777778,
+    "ai_doc_high": 1.0,
+    "ai_window_p50": 0.8626997347280366,
+    "ai_window_p90": 0.9512858763744332,
+    "human_window_p50": 0.4797914108474192,
+    "human_window_p90": 0.6468377787424993,
+    "note": "人写=人写学术（HansPub 2020）（45 段），AI=AI 学术（豆包 Lite 7 章节）（140 段）。两组均为 report-only 探针，不进训练。"
+  },
+  "notes": [
+    "学术探针的 AI 占比不代表真实先验，只用于横向比较召回/误伤。",
+    "这些数字不预测知网、朱雀等官方检测结果；官方判定以平台为准。",
+    "b 路增强与 mtld 裁决会把部分窗口抬到精确的 0.800 下限；论文报告里被抬过的窗口已标 floor_rule。"
+  ]
+}

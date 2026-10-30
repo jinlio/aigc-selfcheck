@@ -1,13 +1,25 @@
-"""v0.1 临时校准常量 —— 全部标注 PROVISIONAL。
+"""校准常量 —— 融合权重走 train-only CV，档位阈值走审计。
 
-来源：M4 之前的案头估计，用于让管线先跑起来。校准集建齐后由
-scripts/fit_constants.py（基于 build_calibration.py 的冻结切分）重新拟合替换，
-替换后按 ALGORITHM.md §4 跑全量回归。数字本身没有承诺意义。
+分两类，纪律不同，不要混为一谈：
+
+1. **融合/特征常量**（ALPHA、BOOST_*、MTLD_*、PPL_*、STYLE_*）：每一轮都有
+   train-only 决策记录，见下方各段注释与 calibration/README.md 的版本表。
+2. **档位阈值**（BAND_SETS.*）：不是分类器参数，而是把 median/P90 映射到
+   低/中/高 的刻度。`general` 是 v3.1 案头值（跨语域可比的历史口径）；
+   `academic` 由 `scripts/fit_bands.py` 审计——在 train 的学术期刊人写与
+   AI 学术文本上做文档级复算，验证「人写判高 ≤1%」且 `thi` 高于融合下限
+   0.800。注意 train 上两类完全分离，边值落在空档内即可满分，**最优值不能
+   由 train 识别**；academic 边值另按探针样本外表现与跨子语域余量决定，
+   脚本负责守合法区间与可动范围。改动任一边值前先跑该脚本。
 
 PPL 方向说明：ALGORITHM.md §2.3 的公式写作 σ((log PPL − μ)/σ)，但同节直觉
 是「AI 文本过于流畅（PPL 低），比人写更顺分越高」——公式应为
 p_ppl = σ((μ − log PPL) / σ)。本实现按直觉方向，公式以这里为准。
 """
+
+from __future__ import annotations
+
+from dataclasses import dataclass
 
 # ── 融合权重（α 调整仅依据冻结的 train split + 分组 CV）──
 # v3.1 决策（2026-10-26，scripts/cv_evaluate.py，全部 train-only）：
@@ -179,10 +191,95 @@ STYLE_FIXED_SCALE = frozenset({"num_evidence", "digit_evidence", "official_evide
 # 与旧配置在 0.65 的工作点（误伤 3%、召回 40%）相比召回 +10pp。
 HEATMAP_LOW = 0.45  # < 0.45 绿
 HEATMAP_HIGH = 0.75  # > 0.75 红
-BAND_ROBUST_LOW = 0.45  # 区间带：低 if robust<0.45 且 tail<0.6
-BAND_TAIL_LOW = 0.6
-BAND_ROBUST_HIGH = 0.6  # 高 if robust≥0.6 或 tail≥0.85
-BAND_TAIL_HIGH = 0.85
+
+
+@dataclass(frozen=True)
+class BandSet:
+    """一套档位阈值：`低 if median<robust_low 且 p90<tail_low`，
+    `高 if median>=robust_high 或 p90>=tail_high`，其余为「中」。
+
+    两套阈值不是「严格/宽松」的差别，而是针对不同语域的**不同刻度**：
+    学术书面语的融合分整体比博客/公文高 0.10~0.13，同一把尺子会把正常
+    人写论文判成「高」。语域不同，尺子就该不同。
+    """
+
+    name: str
+    label: str
+    description: str
+    robust_low: float
+    tail_low: float
+    robust_high: float
+    tail_high: float
+    # 少于这个窗数不判带：1~2 个窗的「中位数」和「P90」就是那个窗本身，
+    # 章节级聚合套上去等于用单窗下结论。
+    min_windows: int = 8
+
+    def band(self, median: float, p90: float) -> str:
+        if median < self.robust_low and p90 < self.tail_low:
+            return "低"
+        if median >= self.robust_high or p90 >= self.tail_high:
+            return "高"
+        return "中"
+
+    def band_or_insufficient(self, median: float, p90: float, n: int) -> str:
+        """窗数不足时返回「样本不足」，不硬判。"""
+        if n < self.min_windows:
+            return "样本不足"
+        return self.band(median, p90)
+
+
+# 部署常量轮次。报告头与 calibration_summary.json 都引用它，改融合常量时
+# 同步改这里——守卫测试会拦住「改了常量但报告仍写旧轮次」的漂移。
+CALIBRATION_VERSION = "v12"
+
+BAND_SETS: dict[str, BandSet] = {
+    "general": BandSet(
+        name="general",
+        label="通用",
+        description="博客/公文/科普等混合语域，v3.1 定值，跨语域可比。",
+        robust_low=0.45,
+        tail_low=0.60,
+        robust_high=0.60,
+        tail_high=0.85,
+    ),
+    "academic": BandSet(
+        name="academic",
+        label="学术",
+        description="学位论文/期刊论文正文，按学术期刊人写文档分布校准（偏宽松）。",
+        robust_low=0.58,
+        tail_low=0.68,
+        robust_high=0.76,
+        tail_high=0.88,
+    ),
+}
+
+# 默认用学术口径：本工具的主要场景是论文自查，通用口径会把正常人写论文
+# 稳定判成「中」，档位失去区分力（见 feedback-学位论文场景）。
+DEFAULT_BAND_SET = "academic"
+
+# 兼容旧引用：这四个常量历史上被直接 import，现在等价于 general 档。
+BAND_ROBUST_LOW = BAND_SETS["general"].robust_low  # 区间带：低 if robust<0.45 且 tail<0.6
+BAND_TAIL_LOW = BAND_SETS["general"].tail_low
+BAND_ROBUST_HIGH = BAND_SETS["general"].robust_high  # 高 if robust≥0.6 或 tail≥0.85
+BAND_TAIL_HIGH = BAND_SETS["general"].tail_high
+
+
+def resolve_band_set(spec: str | None) -> BandSet:
+    """`--band-set` 的解析：只接受内置预设名，None 取默认。
+
+    需要换刻度时新增一个有校准依据的预设，而不是让使用者现填四个数字。
+    """
+    if not spec:
+        return BAND_SETS[DEFAULT_BAND_SET]
+    key = spec.strip()
+    if key in BAND_SETS:
+        return BAND_SETS[key]
+    raise ValueError(
+        f"未知档位口径 {spec!r}；可选 {sorted(BAND_SETS)}。"
+        "档位只提供预设，不支持自定义阈值——需要新口径请提 issue。"
+    )
+
+
 HOT_RUN_THRESHOLD = 0.7  # 疑似段落区间：连续 ≥3 窗 > 0.7
 HOT_RUN_LENGTH = 3
 EXPLAIN_Z_THRESHOLD = 1.5  # 解释理由：|z| ≥ 1.5 的特征

@@ -37,7 +37,10 @@
   }
 
   function bandClass(band) {
-    return band === "低" ? "r-low" : band === "高" ? "r-high" : "r-mid";
+    if (band === "低") return "r-low";
+    if (band === "高") return "r-high";
+    if (band === "样本不足") return "r-none";
+    return "r-mid";
   }
 
   function bandBadge(band) {
@@ -241,7 +244,7 @@
     document.getElementById("disclaimer-text").textContent = DATA.disclaimer || "";
     document.getElementById("provisional-note").textContent = DATA.provisional || "";
     var doc = DATA.doc || {};
-    var bandClass = doc.band === "低" ? "band-low" : doc.band === "高" ? "band-high" : "band-mid";
+    var bandClass = doc.band === "低" ? "band-low" : doc.band === "高" ? "band-high" : doc.band === "样本不足" ? "band-none" : "band-mid";
     var scoreCard = document.getElementById("score-card");
     scoreCard.className = "score-card " + bandClass;
     scoreCard.textContent = "";
@@ -252,10 +255,47 @@
     var scoreMeta = el("div", { class: "score-meta" });
     scoreMeta.appendChild(el("div", { class: "score-label", text: "综合风险分 / 100" }));
     scoreMeta.appendChild(el("div", { class: "score-band", text: "区间带：" + (doc.band || "—") }));
+    var bandSet = doc.band_set || "academic";
+    var bandLabels = { academic: "学术口径", general: "通用口径" };
     scoreMeta.appendChild(el("div", {
       class: "score-note",
-      text: "0–34 低 · 35–64 中 · 65–100 高；综合分用于快速比较，不改变区间带判定。",
+      text: "判定口径：" + (bandLabels[bandSet] || bandSet) + "（0–34 低 · 35–64 中 · 65–100 高）",
     }));
+    if (doc.band_thresholds) {
+      var th = doc.band_thresholds;
+      scoreMeta.appendChild(el("div", {
+        class: "score-note",
+        text: "低：median < " + fmt(th.robust_low) + " 且 P90 < " + fmt(th.tail_low) +
+          "；高：median ≥ " + fmt(th.robust_high) + " 或 P90 ≥ " + fmt(th.tail_high) +
+          "；少于 " + th.min_windows + " 个窗口不判档。",
+      }));
+    }
+    var alt = doc.alternates || {};
+    Object.keys(alt).forEach(function (name) {
+      var other = alt[name];
+      scoreMeta.appendChild(el("div", {
+        class: "score-note",
+        text: "按「" + (other.label || name) + "」口径：" + (other.band || "—") + "（分 " + other.score + "）",
+      }));
+    });
+    var dist = doc.band_distance || {};
+    if (dist.gap !== undefined) {
+      scoreMeta.appendChild(el("div", {
+        class: "score-note",
+        text: dist.gap === 0
+          ? "已达到「" + dist.target + "」带门槛。"
+          : "离「" + dist.target + "」带还差 " + dist.gap + " 个窗（需 " + dist.median.need +
+            " 窗 <" + dist.median.threshold + "，现 " + dist.median.have + "；需 " +
+            dist.p90.need + " 窗 <" + dist.p90.threshold + "，现 " + dist.p90.have + "）。",
+      }));
+    }
+    if (doc.partial && doc.partial.excluded_titles && doc.partial.excluded_titles.length) {
+      scoreMeta.appendChild(el("div", {
+        class: "score-note",
+        text: "已排除 " + doc.partial.n_windows_excluded + " 个窗口（" +
+          doc.partial.excluded_titles.join("、") + "），这些部分不计入文档级档位。",
+      }));
+    }
     scoreCard.appendChild(scoreMeta);
     var chips = el("div", { class: "chips" });
     chips.appendChild(el("span", { class: "chip " + bandClass, html: "风险区间带 <b>" + (doc.band || "—") + "</b>" }));
@@ -371,6 +411,13 @@
         kv.appendChild(v);
       });
       body.appendChild(kv);
+      if (best.floor_rule) {
+        body.appendChild(el("div", { class: "review-note review-info" },
+          el("b", { text: "分数含下限规则" }),
+          el("span", { text: best.floor_rule === "b_lane_boost"
+            ? " B 路高度确信（b≥0.98）且 C 路至少中等（c≥0.45），融合分被抬到 0.80 下限——这个数是规则门槛，不是精确测量值。"
+            : " B 高 / C 低的灰度区命中了词汇多样性裁决（char_mtld 落在 70–110），融合分被抬到 0.80 下限。" })));
+      }
       var cMeta = (best.metas || {}).c || {};
       if (cMeta.ppl !== undefined && cMeta.ppl !== null) {
         body.appendChild(el("div", { class: "kv" },
@@ -501,6 +548,9 @@
     if (guidance.intro) {
       wrap.appendChild(el("p", { class: "hint", text: guidance.intro }));
     }
+    if (guidance.band_set_note) {
+      wrap.appendChild(el("p", { class: "hint", text: guidance.band_set_note }));
+    }
     if (evidence.note) {
       wrap.appendChild(el("p", { class: evidence.sufficient === false ? "warn-flag" : "hint", text: evidence.note }));
     }
@@ -597,6 +647,7 @@
     sections.forEach(function (s) {
       var title = el("div", { class: "section-title", text: s.title || "未命名章节" });
       if (s.method_like) title.appendChild(el("span", { class: "tag", text: "结构敏感段" }));
+      if (s.band_provisional) title.appendChild(el("span", { class: "tag", text: "窗口少·参考" }));
       tbody.appendChild(el("tr", {},
         el("td", {}, title),
         el("td", { class: "num", text: String(s.n_windows || 0) }),
@@ -622,7 +673,8 @@
     summary.appendChild(el("h3", { text: "优先级说明" }));
     summary.appendChild(el("p", {
       class: "hint",
-      text: "按「单独把这一段的风险归零后，全文综合分会下降多少」排序。它是敏感性估计，不是分数承诺；改完请重新检测。",
+      text: "按「单独把这一段的风险归零后，有多少个窗口从超标回到达标」排序——这是窗口计数，"
+        + "比 0–100 综合分更能反映真实进展（单段改动通常只动 1 分）。它是敏感性估计，不是分数承诺；改完请重新检测。",
     }));
     var plan = DATA.plan || [];
     if (!plan.length) {
@@ -634,9 +686,10 @@
     }
     plan.forEach(function (item, i) {
       var card = el("div", { class: "plan-card" });
-      var impactText = item.impact > 0
-        ? "预计影响 -" + item.impact + " 分"
-        : "单窗风险高，分数影响小";
+      var cleared = item.cleared_windows || 0;
+      var impactText = cleared > 0
+        ? "预计减少 " + cleared + " 个超标窗"
+        : "单窗风险高，整体影响小";
       card.appendChild(el("div", { class: "plan-head" },
         el("span", { class: "plan-rank", text: "#" + (i + 1) }),
         el("span", { class: "plan-impact", text: impactText }),

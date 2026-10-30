@@ -41,6 +41,19 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--quiet", action="store_true", help="不输出进度信息")
     parser.add_argument("--compare-with", default=None, metavar="OLD", help="与旧版本对比")
+    parser.add_argument(
+        "--band-set",
+        default=None,
+        choices=["academic", "general"],
+        help="判定口径预设：academic（默认）| general",
+    )
+    parser.add_argument(
+        "--exclude-heading",
+        action="append",
+        default=None,
+        metavar="TEXT",
+        help="文档级档位不计入标题含 TEXT 的章节（可重复）",
+    )
     args = parser.parse_args(argv)
 
     ensure_local(args.file, "待检测文件")
@@ -72,6 +85,10 @@ def main(argv: list[str] | None = None) -> int:
         cmd.append("--quiet")
     if args.compare_with:
         cmd += ["--compare-with", args.compare_with]
+    if args.band_set:
+        cmd += ["--band-set", args.band_set]
+    for heading in args.exclude_heading or []:
+        cmd += ["--exclude-heading", heading]
 
     result = run(cmd)
     if result.returncode != 0:

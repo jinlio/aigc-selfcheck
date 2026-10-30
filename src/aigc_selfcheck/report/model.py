@@ -6,8 +6,10 @@ payload 是单文件 HTML 的唯一数据源，内联进 <script type="applicati
 
 from __future__ import annotations
 
+import json
 import math
 from datetime import datetime
+from pathlib import Path
 
 from .. import __version__
 from ..features import cjk_count
@@ -18,42 +20,61 @@ DISCLAIMER = (
     "不能预测或保证官方检测结果；请把分数和标记当作修改线索，不要当作学术不端认定。"
     "所有分析均在本机完成，文本不会上传。"
 )
-PROVISIONAL_NOTE = (
-    "当前为 v0.2 工具版本（v8 校准常量）：分数与区间带来自本地冻结校准集，"
-    "不是知网/朱雀等官方检测结果，也不能预测它们的判定。"
-)
 
-CALIBRATION = {
-    "version": "v8",
-    "general": {
-        "label": "通用校准集（v8 train，268 人写 / 297 AI 窗）",
-        "auc": "0.963",
-        "human_fp": "0.0%（0/268）",
-        "recall": "74.4%（221/297）",
-    },
-    "academic_default": {
-        "label": "学术探针 · 默认融合（114 人写 / 351 AI 窗）",
-        "ai_window_recall": "94.9%",
-        "human_window_fp": "2.6%",
-        "human_doc_high": "11.1%",
-    },
-    "academic_enhanced": {
-        "label": "学术探针 · 增强召回（实验性）",
-        "ai_window_recall": "98.6%",
-        "human_window_fp": "3.5%",
-    },
-    "combined": {
-        "label": "合并探针（非真实先验，仅供横向比较）",
-        "default_prf": "99.1 / 94.9 / 96.9",
-        "enhanced_prf": "98.9 / 98.6 / 98.7",
-    },
-    "notes": [
-        "通用校准数字是 v8 train 内结果，不是独立 test；样本量小，不能外推。",
-        "学术探针由 2020 年 HansPub 人写论文段落与豆包 Lite 学术章节组成，AI 占比不代表真实先验。",
-        "增强召回默认关闭：它提高召回，也会增加人写误伤；报告中的增强标记只是复核线索。",
-        "这些数字不预测知网、朱雀等官方检测结果；官方判定以平台为准。",
-    ],
-}
+_DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+
+
+def load_calibration_summary() -> dict:
+    """读 `data/calibration_summary.json`——报告里的校准数字唯一来源。
+
+    以前这里写死过一版 94.9% / 2.6% / 11.1%（v8 时代的探针结果），部署常量
+    升到 v12 后没人同步，报告就一直在展示一套自己没在跑的成绩。改成读数
+    以后，`tests/test_calibration_summary.py` 会比对这个文件与探针产物，
+    数字漂了测试就红。
+    """
+    try:
+        raw = (_DATA_DIR / "calibration_summary.json").read_text(encoding="utf-8")
+    except OSError:  # noqa: BLE001 —— 缺文件时退化为空，报告仍能出
+        return {"deployed_constants": "?", "notes": []}
+    return json.loads(raw)
+
+
+def _pct(value: float | None) -> str:
+    return "—" if value is None else f"{value * 100:.1f}%"
+
+
+SUMMARY = load_calibration_summary()
+
+
+def _calibration_block() -> dict:
+    """把产物摘要排版成报告里展示的字符串。"""
+    general = SUMMARY.get("general", {})
+    academic = SUMMARY.get("academic_default", {})
+    return {
+        "version": SUMMARY.get("deployed_constants", "?"),
+        "general": {
+            "label": general.get("label", ""),
+            "auc": f"{general.get('auc', 0):.3f}",
+            "human_fp": _pct(general.get("human_fp")),
+            "recall": _pct(general.get("recall")),
+        },
+        "academic_default": {
+            "label": academic.get("label", ""),
+            "ai_window_recall": _pct(academic.get("ai_window_recall")),
+            "human_window_fp": _pct(academic.get("human_window_fp")),
+            "human_doc_high": _pct(academic.get("human_doc_high")),
+            "ai_doc_high": _pct(academic.get("ai_doc_high")),
+        },
+        "notes": SUMMARY.get("notes", []),
+    }
+
+
+CALIBRATION = _calibration_block()
+
+PROVISIONAL_NOTE = (
+    f"当前为 v{__version__} 工具版本（{SUMMARY.get('deployed_constants', '?')} 校准常量）："
+    "分数与区间带来自本地冻结校准集，不是知网/朱雀等官方检测结果，也不能预测它们的判定。"
+)
 
 # 窗口 meta 只透出报告需要的键，避免 payload 膨胀
 _META_KEYS = ("p_ppl", "p_style", "log_ppl", "ppl", "device", "truncated", "chunks", "model")
@@ -114,8 +135,33 @@ def _guidance(result: AnalysisResult) -> dict:
         headline = "整体风险偏高：至少一个稳健指标进入高带；请逐段复核，不要直接提交。"
     elif band == "中":
         headline = "整体风险中等：部分窗口接近或越过红线，建议优先复核高亮段落。"
+    elif band == "样本不足":
+        headline = "可检测窗口太少，不够给出档位判断；请只看逐句热力图，不要下结论。"
     else:
         headline = "整体风险偏低：没有窗口越过 0.75 红线；仍建议通读高亮句。"
+    distance = result.doc.get("band_distance") or {}
+    band_set_note = (
+        "低/中/高是按**写法可预测性**分的档，不是「是否用了 AI」的判定。"
+        "学术语体在通用阈值下天然偏中偏高，所以默认用学术口径；"
+        "口径里每一档的边界都在报告的「区间带」卡片里写明。"
+        "换口径用 --band-set academic|general，档位只提供按语域校准过的预设。"
+    )
+    steps = [
+        "先看区间带、口径与证据是否充足；短文本不要下结论。",
+        "看「章节地图」定位高风险章节，再看「修改计划」判断先改哪一段。",
+        "按热力图从红到黄逐句复核，点句子查看白话原因、修改建议和技术细节。",
+        "遇到「公式/符号密集」「方法/结果段易误伤」提示时先人工确认，不要为了降分删改实验细节。",
+        "修改后重新运行本工具；官方检测结果仍以知网等平台为准。",
+    ]
+    if distance and not distance.get("reachable") and band != "低":
+        steps.insert(
+            1,
+            f"离「低」带还差 {distance.get('gap')} 个窗：需要 "
+            f"{distance['median']['need']} 个窗低于 {distance['median']['threshold']}"
+            f"（现 {distance['median']['have']}）且 "
+            f"{distance['p90']['need']} 个窗低于 {distance['p90']['threshold']}"
+            f"（现 {distance['p90']['have']}）。",
+        )
     return {
         "evidence": _evidence(result),
         "intro": (
@@ -123,13 +169,8 @@ def _guidance(result: AnalysisResult) -> dict:
             "先看“为什么被标”，再按“怎么改”调整；不要为了降分故意写病句。"
         ),
         "headline": headline,
-        "steps": [
-            "先看区间带与证据是否充足；短文本不要下结论。",
-            "看「章节地图」定位高风险章节，再看「修改计划」判断先改哪一段。",
-            "按热力图从红到黄逐句复核，点句子查看白话原因、修改建议和技术细节。",
-            "遇到「公式/符号密集」「方法/结果段易误伤」提示时先人工确认，不要为了降分删改实验细节。",
-            "修改后重新运行本工具；官方检测结果仍以知网等平台为准。",
-        ],
+        "band_set_note": band_set_note,
+        "steps": steps,
         "suggestions": _suggestions(result),
     }
 
@@ -171,6 +212,7 @@ def build_payload(result: AnalysisResult, title: str | None = None) -> dict:
                 "text": window.text,
                 "meta_prob": _safe(window.meta_prob),
                 "enhanced": window.enhanced,
+                "floor_rule": window.floor_rule,
             }
         )
 
@@ -265,6 +307,7 @@ def build_payload(result: AnalysisResult, title: str | None = None) -> dict:
         "sections": result.sections,
         "plan": result.plan,
         "llm_advice": result.llm_advice_info,
+        "timings": result.timings,
         "ppl_curve": ppls,
         "hot_intervals": hot,
         "top_sentences": result.top_sentences(20),

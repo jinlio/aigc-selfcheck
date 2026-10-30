@@ -120,7 +120,11 @@ def _fmt(value, digits: int = 2) -> str:
 
 
 def _band_class(band: str) -> str:
-    return "low" if band == "低" else "high" if band == "高" else "mid"
+    if band == "低":
+        return "low"
+    if band == "高":
+        return "high"
+    return "mid"
 
 
 def _status_class(status: str) -> str:

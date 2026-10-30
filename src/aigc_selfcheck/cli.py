@@ -13,6 +13,9 @@ import json
 import sys
 from pathlib import Path
 
+# 只读常量，导入很轻；choices 需要在 build_parser 时就拿到预署名。
+from .constants import BAND_SETS
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -65,6 +68,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="关闭档位默认的大模型具体建议，只用规则建议",
     )
     parser.add_argument("--quiet", action="store_true", help="不输出进度信息")
+    parser.add_argument(
+        "--band-set",
+        default=None,
+        metavar="NAME",
+        choices=sorted(BAND_SETS),
+        help=(
+            "判定口径预设：academic（默认，学位论文/期刊正文）| general（博客/公文等混合语域）。"
+            "低=median<lo 且 p90<tlo；高=median>=hi 或 p90>=thi；边值见报告首屏。"
+        ),
+    )
+    parser.add_argument(
+        "--exclude-heading",
+        action="append",
+        default=None,
+        metavar="TEXT",
+        help=(
+            "文档级档位不计入标题含 TEXT 的章节及其下属内容（可重复）。"
+            "用于排除外文翻译、附录、致谢等非原创正文；热力图与章节地图仍完整显示。"
+        ),
+    )
     return parser
 
 
@@ -132,15 +155,27 @@ def main(argv: list[str] | None = None) -> int:
     # 重型依赖在确认参数后导入
     from .cache import ScoreCache
     from .compare import compare_results, render_compare
+    from .constants import resolve_band_set
     from .detectors import build_detectors
     from .pipeline import analyze_document
     from .report import render_report
     from .report.model import build_payload
 
     try:
+        band_set = resolve_band_set(args.band_set)
+    except ValueError as exc:
+        print(f"错误：{exc}", file=sys.stderr)
+        return 2
+
+    try:
         log(
             f"运行档位 {profile['label']}（{profile['name']}）："
             f"检测路 {detectors_spec}，device={device} …"
+        )
+        log(
+            f"档位口径 {band_set.label}：低 median<{band_set.robust_low} 且 "
+            f"p90<{band_set.tail_low}；高 median>={band_set.robust_high} 或 "
+            f"p90>={band_set.tail_high}；少于 {band_set.min_windows} 窗不判带。"
         )
         if llm_skip_note:
             log(llm_skip_note)
@@ -156,6 +191,8 @@ def main(argv: list[str] | None = None) -> int:
             enhanced=enhanced,
             profile=profile,
             llm_advice=llm_advice,
+            band_set=band_set,
+            exclude_headings=args.exclude_heading,
         )
         comparison = None
         if compare_source is not None:
@@ -167,6 +204,8 @@ def main(argv: list[str] | None = None) -> int:
                 enhanced=enhanced,
                 profile=profile,
                 llm_advice=llm_advice,
+                band_set=band_set,
+                exclude_headings=args.exclude_heading,
             )
             comparison = compare_results(old_result, result)
         cache.flush()
