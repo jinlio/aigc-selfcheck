@@ -29,6 +29,8 @@ _RE_CAPTION = re.compile(r"^(图|表|附图|附表|Fig\.?|Table)\s*\d+")
 _RE_LONG_QUOTE = re.compile(r"“([^”]{50,})”")
 _RE_LATEX_TRACE = re.compile(r"\\(frac|begin|sum|int|left|right|alpha|beta|gamma|delta|mu|sigma)")
 _RE_ASSIGNMENT = re.compile(r"^[A-Za-z][A-Za-z0-9_]*\s*=\s*\S")
+# 符号说明条目：符号可带下标/希腊字母，等号后是中文释义
+_RE_SYMBOL_DEF = re.compile(r"^[A-Za-zΑ-Ωα-ω][\w₀-₉ᵢₘₙΑ-Ωα-ω]*\s*=\s*[^\s=]")
 
 
 def _cjk_ratio(text: str) -> float:
@@ -63,6 +65,20 @@ def _looks_like_formula(text: str) -> bool:
     if sum("\u4e00" <= ch <= "\u9fff" for ch in stripped) > 2:
         return False
     return bool(_RE_ASSIGNMENT.match(stripped))
+
+
+def _looks_like_symbol_definition(text: str) -> bool:
+    """识别符号说明表的条目：「TI = 总收入（USD）」「LCₘ = 月土地成本（USD/m²）」。
+
+    这类行长 ≤32 字符、以符号赋值开头、不带句读，是公式符号的释义而非正文。
+    判据刻意收窄，避免把「成本 = 收入 - 利润」这类正文短句误判。
+    """
+    stripped = text.strip()
+    if not 3 <= len(stripped) <= 32:
+        return False
+    if re.search(r"[。！？；，、]", stripped):
+        return False
+    return bool(_RE_SYMBOL_DEF.match(stripped))
 
 
 @dataclass
@@ -104,6 +120,7 @@ def classify_block(block: Block) -> Block:
         or "$$" in text
         or symbol_density(text) > 0.30
         or _looks_like_formula(text)
+        or _looks_like_symbol_definition(text)
     ):
         kind = "formula"
     elif _RE_CAPTION.match(text) and len(text) < 80:

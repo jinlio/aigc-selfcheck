@@ -36,8 +36,17 @@ _RE_DOCX_HEADING = re.compile(
     r"|[一二三四五六七八九十]+、\S"
     r"|摘\s*要|Abstract|关键词|Key\s*words|参考文献|References|致谢|附录|目\s*录"
     r"|引言|绪论|相关工作|研究方法|实验|结果|讨论|结论"
+    r"|符号说明|符号表|术语表|缩略语表|变量说明"
     r")",
     re.IGNORECASE,
+)
+# 自定义论文样式常把级别写在样式名里（FY H1 / Thesis H2 / 标题3），
+# 但 outlineLvl 未必设置，段落级属性也读不到。
+_RE_STYLE_HEADING = re.compile(r"(?:^|[^a-z])(?:h|heading|标题)\s*[1-9](?![0-9])", re.IGNORECASE)
+# 「外文翻译：」「译文正文：」这类纯标签行，不是正文。用白名单而不是通用
+# 「短语＋冒号」，避免把「具体如下：」这类正文引导句也跳掉。
+_RE_LABEL_LINE = re.compile(
+    r"^(?:外文翻译|译文正文|原文正文|原文|译文|文献综述|案例分析|数据来源)[：:]$"
 )
 _RE_TOC_STYLE = re.compile(r"(?:toc|目录)\s*\d*", re.IGNORECASE)
 _RE_TOC_LINE = re.compile(r"(?:\t|\.{3,}|…{2,})\s*\d{1,4}$")
@@ -193,18 +202,48 @@ class Block:
     meta: dict = field(default_factory=dict)
 
 
+def _style_outline_level(paragraph) -> int | None:
+    """沿样式继承链读大纲级别。
+
+    大量中文论文用自定义样式（`FY H1`、`标题 1`、`ThesisH2` …）承载标题级别，
+    outlineLvl 定义在 style 上而不是段落 pPr 上。只看段落属性会把整份文档的
+    标题漏成正文。
+    """
+    try:
+        style = paragraph.style
+    except Exception:  # noqa: BLE001 —— 缺样式定义按无级别处理
+        return None
+    seen: set[int] = set()
+    while style is not None and id(style) not in seen:
+        seen.add(id(style))
+        try:
+            pPr = style.element.pPr
+        except Exception:  # noqa: BLE001
+            return None
+        if pPr is not None and pPr.outlineLvl is not None:
+            try:
+                return int(pPr.outlineLvl.val)
+            except (TypeError, ValueError):
+                return None
+        try:
+            style = style.base_style
+        except Exception:  # noqa: BLE001
+            return None
+    return None
+
+
 def _docx_outline_level(paragraph) -> int | None:
-    """段落大纲级别（0–8）；未设置返回 None。"""
+    """段落大纲级别（0–8）：先看段落自身，再回落到样式继承链。"""
     try:
         pPr = paragraph._p.pPr
     except Exception:  # noqa: BLE001 —— 损坏的 XML 按无级别处理
         return None
-    if pPr is None or pPr.outlineLvl is None:
-        return None
-    try:
-        return int(pPr.outlineLvl.val)
-    except (TypeError, ValueError):
-        return None
+    if pPr is not None and pPr.outlineLvl is not None:
+        try:
+            return int(pPr.outlineLvl.val)
+        except (TypeError, ValueError):
+            return None
+    return _style_outline_level(paragraph)
 
 
 def _docx_font_size(paragraph) -> float | None:
@@ -229,6 +268,9 @@ def _docx_paragraph_kind(paragraph, style: str) -> str:
 
     if style.startswith(("Heading", "标题", "Title", "Subtitle")):
         return "heading"
+    # 论文模板常自带 FY H1 / Thesis H2 这类样式名，级别写在名字里
+    if len(text) <= 40 and _RE_STYLE_HEADING.search(style) and style_l not in {"h1", "h2", "h3"}:
+        return "heading"
     if style_l.startswith(("author", "date")):
         return "metadata"
     if _RE_TOC_STYLE.fullmatch(style) or style_l.startswith("toc"):
@@ -237,6 +279,10 @@ def _docx_paragraph_kind(paragraph, style: str) -> str:
     # 目录条目常被复制成正文样式：带制表符/点引线且以页码结尾
     if len(text) < 80 and _RE_TOC_LINE.search(text):
         return "toc"
+
+    # 「外文翻译：」「译文正文：」这类纯标签行
+    if len(text) <= 12 and _RE_LABEL_LINE.match(text):
+        return "metadata"
 
     # 封面字段先于标题判定：「题　　目　xxx」既有大字号也可能带 outline
     if len(text) <= 40 and (_RE_COVER_FIELD.match(text) or _RE_BRACKET_FIELD.match(text)):

@@ -112,6 +112,76 @@ def test_body_short_paragraph_without_number_is_detectable(tmp_path: Path) -> No
     assert blocks[1].kind == "paragraph"
 
 
+def test_style_name_carries_heading_level(tmp_path: Path) -> None:
+    """论文模板把标题级别写在样式名里（FY H1 / ThesisH2），outlineLvl 未必设置。"""
+    path = _docx_with_paragraphs(
+        tmp_path,
+        [
+            ("绪  论", "FY H1n"),
+            ("1.研究背景", "FY H3"),
+            ("2.4 建设内容、规模与产出方案", "FY H2"),
+            ("住宅楼栋采用剪力墙结构高层住宅，满足改善型产品的开间需求。", "FY Body"),
+        ],
+    )
+    blocks = read_docx(path)
+
+    assert [b.kind for b in blocks] == ["heading", "heading", "heading", "paragraph"]
+
+
+def test_style_outline_level_is_inherited(tmp_path: Path) -> None:
+    """outlineLvl 定义在自定义样式上时，段落也该判成标题。"""
+    doc = Document()
+    style = doc.styles.add_style("ThesisChapter", WD_STYLE_TYPE.PARAGRAPH)
+    style.element.get_or_add_pPr().get_or_add_outlineLvl().val = 0
+    doc.add_paragraph("结  论", style="ThesisChapter")
+    doc.add_paragraph("本文完成了可行性研究工作。", style="Normal")
+    path = tmp_path / "outline.docx"
+    doc.save(path)
+
+    blocks = read_docx(path)
+
+    assert blocks[0].kind == "heading"
+    assert blocks[1].kind == "paragraph"
+
+
+def test_label_lines_become_metadata(tmp_path: Path) -> None:
+    """「外文翻译：」「译文正文：」是分隔标签，不是正文；正文引导句不受影响。"""
+    path = _docx_with_paragraphs(
+        tmp_path,
+        [
+            ("外文翻译：", "Normal"),
+            ("译文正文：", "FY Body"),
+            ("具体如下：", "Normal"),
+            ("项目采用装配式建造方式。", "Normal"),
+        ],
+    )
+    blocks = read_docx(path)
+
+    assert blocks[0].kind == "metadata"
+    assert blocks[1].kind == "metadata"
+    assert blocks[2].kind == "paragraph"
+    assert blocks[3].kind == "paragraph"
+
+
+def test_symbol_definitions_are_formula_not_prose(tmp_path: Path) -> None:
+    """符号说明表条目按公式处理；含顿号的正文短句仍留在正文。"""
+    from aigc_selfcheck.preprocess import classify_block
+
+    path = _docx_with_paragraphs(
+        tmp_path,
+        [
+            ("TI = 总收入（USD）", "FY Body"),
+            ("LCₘ = 月土地成本（USD/m²）", "FY Body"),
+            ("成本、收入与利润三者需要分开核算。", "FY Body"),
+        ],
+    )
+    blocks = [classify_block(b) for b in read_docx(path)]
+
+    assert blocks[0].kind == "formula"
+    assert blocks[1].kind == "formula"
+    assert blocks[2].kind == "paragraph"
+
+
 class TestPdfStructure:
     """PDF 没有样式信息，全靠文本启发式——这里覆盖封面/目录/标题。"""
 
